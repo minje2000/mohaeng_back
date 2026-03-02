@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-// report 머지가 아직 안되어 에러 발생
+
 @Service
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
@@ -33,7 +33,6 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationTypeRepository notificationTypeRepository;
 
-    // 템플릿 치환용(기존 코드 수정 없이 조회만)
     private final EventRepository eventRepository;
     private final AdminReportRepository reportRepository;
 
@@ -47,7 +46,6 @@ public class NotificationServiceImpl implements NotificationService {
             return new PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0L, 0);
         }
 
-        // 1) 타입 N+1 방지
         List<Long> typeIds = page.getContent().stream()
                 .map(NotificationEntity::getNotiTypeId)
                 .distinct()
@@ -56,7 +54,6 @@ public class NotificationServiceImpl implements NotificationService {
         Map<Long, NotificationTypeEntity> typeMap = notificationTypeRepository.findAllByNotiTypeIdIn(typeIds).stream()
                 .collect(Collectors.toMap(NotificationTypeEntity::getNotiTypeId, Function.identity()));
 
-        // 2) TITLE 치환용 이벤트 제목
         List<Long> eventIds = page.getContent().stream()
                 .map(NotificationEntity::getEventId)
                 .filter(Objects::nonNull)
@@ -66,7 +63,6 @@ public class NotificationServiceImpl implements NotificationService {
         Map<Long, String> eventTitleMap = eventRepository.findAllById(eventIds).stream()
                 .collect(Collectors.toMap(EventEntity::getEventId, EventEntity::getTitle));
 
-        // 3) REASON_CATEGORY 치환용 신고 사유
         List<Long> reportIds = page.getContent().stream()
                 .map(NotificationEntity::getReportId)
                 .filter(Objects::nonNull)
@@ -76,7 +72,6 @@ public class NotificationServiceImpl implements NotificationService {
         Map<Long, String> reportReasonMap = reportRepository.findAllById(reportIds).stream()
                 .collect(Collectors.toMap(AdminReportFEntity::getReportId, AdminReportFEntity::getReasonCategory));
 
-        // 4) DTO 변환
         List<NotificationItemDto> items = page.getContent().stream()
                 .map(n -> {
                     NotificationTypeEntity type = typeMap.get(n.getNotiTypeId());
@@ -125,11 +120,14 @@ public class NotificationServiceImpl implements NotificationService {
             throw new EntityNotFoundException("존재하지 않는 알림 타입입니다.");
         }
 
+        //  핵심: DB가 status1 NOT NULL / 짧은 길이여도 안 터지게 기본값 넣기
         NotificationEntity n = NotificationEntity.builder()
                 .userId(userId)
                 .notiTypeId(notiTypeId)
                 .eventId(eventId)
                 .reportId(reportId)
+                .status1("0")
+                .status2("0")
                 .build();
 
         NotificationEntity saved = notificationRepository.save(n);
@@ -156,7 +154,6 @@ public class NotificationServiceImpl implements NotificationService {
         return notificationRepository.save(n).getNotificationId();
     }
 
-    // 템플릿 치환: 표에서 쓰는 키만 최소 지원
     private String applyTemplate(NotificationTypeEntity type, String title, String reasonCategory) {
         if (type == null || type.getNotiTypeContents() == null) return "";
         return type.getNotiTypeContents()
