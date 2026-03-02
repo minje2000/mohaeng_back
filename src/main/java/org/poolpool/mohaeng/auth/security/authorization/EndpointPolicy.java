@@ -13,9 +13,11 @@ public final class EndpointPolicy {
     public static final String[] PUBLIC_POST = {
             "/api/user/checkId",	//이메일 중복 확인
             "/api/user/createUser",	//일반 회원가입
+            "/api/user/socialSignupComplete",	//소셜 회원가입
             "/api/user/searchId",	//이메일 찾기
             "/api/user/renewPwd",	//비밀번호 찾기
-            "/api/sms/**"
+            "/api/sms/**",			//문자 인증
+            "/api/nts/**"			//사업자 등록번호 조회
     };
 
     //관리자(ADMIN)만 가능
