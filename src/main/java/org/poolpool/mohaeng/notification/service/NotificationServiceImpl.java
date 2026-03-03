@@ -12,7 +12,6 @@ import org.poolpool.mohaeng.admin.report.repository.AdminReportRepository;
 import org.poolpool.mohaeng.common.api.PageResponse;
 import org.poolpool.mohaeng.event.list.entity.EventEntity;
 import org.poolpool.mohaeng.event.list.repository.EventRepository;
-import org.poolpool.mohaeng.event.participation.entity.ParticipationBoothEntity; //  추가 (부스 제목 조회)
 import org.poolpool.mohaeng.notification.dto.NotificationItemDto;
 import org.poolpool.mohaeng.notification.entity.NotificationEntity;
 import org.poolpool.mohaeng.notification.entity.NotificationTypeEntity;
@@ -41,7 +40,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final AdminReportRepository reportRepository;
 
     @PersistenceContext
-    private EntityManager em; //  추가
+    private EntityManager em;
 
     private final Logger log = LoggerFactory.getLogger(NotificationServiceImpl.class);
 
@@ -53,7 +52,18 @@ public class NotificationServiceImpl implements NotificationService {
         if (s == null) return null;
         String t = s.trim();
         if (t.isEmpty() || "0".equals(t)) return null;
-        try { return Long.valueOf(t); } catch (Exception e) { return null; }
+
+        String digits = t.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) return null;
+
+        try { return Long.valueOf(digits); } catch (Exception e) { return null; }
+    }
+
+    //  부스 키는 status2 우선
+    private static Long boothIdFrom(NotificationEntity n) {
+        Long v = parseLongOrNull(n.getStatus2());
+        if (v != null) return v;
+        return parseLongOrNull(n.getStatus1());
     }
 
     @Override
@@ -83,7 +93,7 @@ public class NotificationServiceImpl implements NotificationService {
         Map<Long, String> eventTitleMap = eventRepository.findAllById(eventIds).stream()
                 .collect(Collectors.toMap(EventEntity::getEventId, EventEntity::getTitle));
 
-        // 3) 신고 사유(기존 유지)
+        // 3) 신고 사유
         List<Long> reportIds = page.getContent().stream()
                 .map(NotificationEntity::getReportId)
                 .filter(Objects::nonNull)
@@ -93,17 +103,17 @@ public class NotificationServiceImpl implements NotificationService {
         Map<Long, String> reportReasonMap = reportRepository.findAllById(reportIds).stream()
                 .collect(Collectors.toMap(AdminReportFEntity::getReportId, AdminReportFEntity::getReasonCategory));
 
-        //  4) 부스 제목 맵: (8/9/10) + status1(pctBoothId) 이용
+        //  4) 부스 제목 맵 (pctBoothId -> boothTitle)
         List<Long> boothIds = page.getContent().stream()
                 .filter(n -> isBoothNoti(n.getNotiTypeId()))
-                .map(n -> parseLongOrNull(n.getStatus1()))
+                .map(NotificationServiceImpl::boothIdFrom)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
 
         Map<Long, String> boothTitleMap = new HashMap<>();
         if (!boothIds.isEmpty()) {
-            // ParticipationBoothEntity의 필드명이 pctBoothId / boothTitle 이어야 함
+            // ParticipationBoothEntity의 필드명이 pctBoothId, boothTitle 이어야 함
             List<Object[]> rows = em.createQuery(
                     "select b.pctBoothId, b.boothTitle " +
                     "from ParticipationBoothEntity b " +
@@ -121,12 +131,10 @@ public class NotificationServiceImpl implements NotificationService {
                 .map(n -> {
                     NotificationTypeEntity type = typeMap.get(n.getNotiTypeId());
 
-                    // 기본 title = 행사 제목
                     String title = (n.getEventId() == null) ? "" : eventTitleMap.getOrDefault(n.getEventId(), "");
 
-                    //  부스 알림이면 title에 " / 부스제목" 붙이기
                     if (isBoothNoti(n.getNotiTypeId())) {
-                        Long boothId = parseLongOrNull(n.getStatus1());
+                        Long boothId = boothIdFrom(n);
                         String boothTitle = (boothId == null) ? null : boothTitleMap.get(boothId);
                         if (boothTitle != null && !boothTitle.isBlank()) {
                             title = title.isBlank() ? boothTitle : (title + " / " + boothTitle);
@@ -142,11 +150,13 @@ public class NotificationServiceImpl implements NotificationService {
                 })
                 .toList();
 
-        return new PageResponse<>(items,
+        return new PageResponse<>(
+                items,
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
                 page.getTotalElements(),
-                page.getTotalPages());
+                page.getTotalPages()
+        );
     }
 
     @Override
@@ -180,13 +190,12 @@ public class NotificationServiceImpl implements NotificationService {
             throw new EntityNotFoundException("존재하지 않는 알림 타입입니다.");
         }
 
-        // status1/status2 기본값(기존 유지)
         NotificationEntity n = NotificationEntity.builder()
                 .userId(userId)
                 .notiTypeId(notiTypeId)
                 .eventId(eventId)
                 .reportId(reportId)
-                .status1("0")
+                .status1("미발송")
                 .status2("0")
                 .build();
 
@@ -202,8 +211,7 @@ public class NotificationServiceImpl implements NotificationService {
             throw new EntityNotFoundException("존재하지 않는 알림 타입입니다.");
         }
 
-        // null 방지(안전)
-        String s1 = (status1 == null || status1.isBlank()) ? "0" : status1;
+        String s1 = (status1 == null || status1.isBlank()) ? "미발송" : status1;
         String s2 = (status2 == null || status2.isBlank()) ? "0" : status2;
 
         NotificationEntity n = NotificationEntity.builder()

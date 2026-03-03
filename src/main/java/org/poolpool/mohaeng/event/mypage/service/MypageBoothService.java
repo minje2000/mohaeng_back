@@ -18,22 +18,16 @@ import lombok.RequiredArgsConstructor;
 public class MypageBoothService {
 
     private final MypageBoothRepository repo;
-    private final NotificationService notificationService; //  추가
+    private final NotificationService notificationService;
 
-    //  마이페이지 부스 내역(신청한 부스)
     public List<BoothMypageResponse> getMyBooths(Long userId) {
         return repo.findMyBooths(userId);
     }
 
-    //  마이페이지 부스 내역(주최자: 받은 부스)
     public List<BoothMypageResponse> getReceivedBooths(Long hostUserId) {
         return repo.findReceivedBooths(hostUserId);
     }
 
-    /**
-     *  신청서 상세 조회
-     * - 주최자(해당 이벤트 host) 또는 신청자(pb.user_id)만 조회 가능
-     */
     public BoothApplicationDetailResponse getBoothApplicationDetail(Long viewerId, Long pctBoothId) {
         BoothApplicationDetailResponse res = repo.findBoothDetail(viewerId, pctBoothId);
         if (res == null) {
@@ -42,10 +36,6 @@ public class MypageBoothService {
         return res;
     }
 
-    /**
-     *  (주최자) 승인
-     * - 승인 처리 성공 후 신청자에게 BOOTH_ACCEPT 알림(9)
-     */
     @Transactional
     public void approveBooth(Long hostUserId, Long pctBoothId) {
         int updated = repo.updateBoothStatusAsHostRelaxed(hostUserId, pctBoothId, "승인");
@@ -53,23 +43,24 @@ public class MypageBoothService {
             throw AuthException.badRequest("BOOTH_CANNOT_APPROVE", "승인할 수 없는 상태이거나 처리 권한이 없습니다.");
         }
 
-        //  승인 알림(신청자에게)
         BoothApplicationDetailResponse detail = repo.findBoothDetail(hostUserId, pctBoothId);
         if (detail != null) {
-            Long applicantId = detail.getUserId(); // 신청자
-            Long eventId = detail.getEventId();    // 행사
+            Long applicantId = detail.getUserId();
+            Long eventId = detail.getEventId();
 
             if (applicantId != null && eventId != null && !applicantId.equals(hostUserId)) {
-                // reportId는 항상 null (FK 이슈 방지)
-                notificationService.create(applicantId, NotiTypeId.BOOTH_ACCEPT, eventId, null);
+                notificationService.createWithStatus(
+                        applicantId,
+                        NotiTypeId.BOOTH_ACCEPT,          // 9
+                        eventId,
+                        null,
+                        "미발송",
+                        String.valueOf(pctBoothId)        //  status2
+                );
             }
         }
     }
 
-    /**
-     *  (주최자) 반려 + (결제 환불 처리: 결제 모듈 연동 지점)
-     * - 반려 처리 성공 후 신청자에게 BOOTH_REJECT 알림(10)
-     */
     @Transactional
     public void rejectBooth(Long hostUserId, Long pctBoothId) {
         int updated = repo.updateBoothStatusAsHostRelaxed(hostUserId, pctBoothId, "반려");
@@ -77,17 +68,23 @@ public class MypageBoothService {
             throw AuthException.badRequest("BOOTH_CANNOT_REJECT", "반려할 수 없는 상태이거나 처리 권한이 없습니다.");
         }
 
-        //  반려 알림(신청자에게)
         BoothApplicationDetailResponse detail = repo.findBoothDetail(hostUserId, pctBoothId);
         if (detail != null) {
             Long applicantId = detail.getUserId();
             Long eventId = detail.getEventId();
 
             if (applicantId != null && eventId != null && !applicantId.equals(hostUserId)) {
-                notificationService.create(applicantId, NotiTypeId.BOOTH_REJECT, eventId, null);
+                notificationService.createWithStatus(
+                        applicantId,
+                        NotiTypeId.BOOTH_REJECT,          // 10
+                        eventId,
+                        null,
+                        "미발송",
+                        String.valueOf(pctBoothId)        //  status2
+                );
             }
         }
 
-        // TODO: 결제 환불 처리 연동
+        // TODO: 환불 연동
     }
 }
