@@ -5,7 +5,6 @@ import java.time.ZoneId;
 import java.util.List;
 
 import org.poolpool.mohaeng.event.wishlist.entity.EventWishlistEntity;
-import org.poolpool.mohaeng.notification.entity.NotificationEntity;
 import org.poolpool.mohaeng.notification.service.NotificationService;
 import org.poolpool.mohaeng.notification.type.NotiTypeId;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -33,19 +32,20 @@ public class WishlistNotificationScheduler {
         LocalDate today = LocalDate.now(KST);
         LocalDate tomorrow = today.plusDays(1);
 
-        sendForStartDate(tomorrow, NotiTypeId.EVENT_DAY_BEFORE);
-        sendForStartDate(today, NotiTypeId.EVENT_DAY_OF);
+        //  참여자 모집 시작 전날 / 당일
+        sendForRecruitStartDate(tomorrow, NotiTypeId.EVENT_DAY_BEFORE); // 1
+        sendForRecruitStartDate(today, NotiTypeId.EVENT_DAY_OF);       // 2
     }
 
-    private void sendForStartDate(LocalDate startDate, long notiTypeId) {
-        // 1) 해당 날짜 시작 & DELETED 제외 이벤트
+    private void sendForRecruitStartDate(LocalDate recruitStartDate, long notiTypeId) {
+        // 1) 해당 날짜 모집 시작 & DELETED 제외 이벤트
         List<Long> eventIds = em.createQuery("""
                 select e.eventId
                   from EventEntity e
-                 where e.startDate = :startDate
+                 where e.startRecruit = :recruitStartDate
                    and (e.eventStatus is null or e.eventStatus <> 'DELETED')
                 """, Long.class)
-            .setParameter("startDate", startDate)
+            .setParameter("recruitStartDate", recruitStartDate)
             .getResultList();
 
         if (eventIds.isEmpty()) return;
