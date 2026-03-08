@@ -9,7 +9,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class WebController {
 
-    @GetMapping(value = "/{path:[^\\.]*}")
+	// 루트 접속 처리
+    @GetMapping("/")
+    public String root() {
+        return "forward:/index.html";
+    }
+
+    // React Router 경로 처리
+    @GetMapping("/{path:[^\\.]*}")
     public String forward() {
         return "forward:/index.html";
     }
