@@ -100,7 +100,7 @@ public class SecurityConfig {
                         "/", "/index.html",
                         "/favicon.ico", "/manifest.json", "/robots.txt",
                         "/assets/**", "/static/**",
-                        "/*.js", "/*.css", "/*.map",
+                        "/*.js", "/*.css", "/*.map", "/geo/**",
                         "/*.png", "/*.jpg", "/*.jpeg", "/*.gif", "/*.svg", "/*.webp", "/*.ico",
                         "/error"
                 ).permitAll()

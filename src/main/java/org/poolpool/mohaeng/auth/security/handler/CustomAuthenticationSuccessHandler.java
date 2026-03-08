@@ -59,7 +59,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             socialCookie.setHttpOnly(false); // JS 접근 허용
             response.addCookie(socialCookie);
 
-            response.sendRedirect("http://localhost:3000/socialSignup");
+            response.sendRedirect("/socialSignup");
+            return;
         }
 
         // 기존 회원: 기존 토큰 발급 로직
@@ -71,7 +72,7 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         LocalDateTime now = LocalDateTime.now();
         refreshTokenService.upsert(userId, refresh, now, now.plusDays(1));
 
-        String redirectUrl = "http://localhost:3000/oauthSuccess?accessToken=" + access + "&refreshToken=" + refresh + "&isNewUser=" + isNewUser;
+        String redirectUrl = "/oauthSuccess?accessToken=" + access + "&refreshToken=" + refresh + "&isNewUser=" + isNewUser;
         response.sendRedirect(redirectUrl);
     }
 }

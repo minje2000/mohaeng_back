@@ -38,6 +38,6 @@ public class CustomAuthenticationFailureHandler implements AuthenticationFailure
         cookie.setMaxAge(10);
         cookie.setHttpOnly(false);
         response.addCookie(cookie);
-        response.sendRedirect("http://localhost:3000/oauthFailure");
+        response.sendRedirect("/oauthFailure");
     }
 }
