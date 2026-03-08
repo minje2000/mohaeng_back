@@ -9,15 +9,20 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record UploadProperties(
         String uploadDir   // app.upload-dir 프로퍼티 값으로 매핑됨. uploadDir == C:/upload_files (base 경로)
 ) {
+	
+	/** 행사 업로드 경로 */
+	public Path boardDir() {
+		return Path.of(uploadDir, "event");  // C:/upload_files/event
+	}
 
-    /** 공지사항 업로드 경로 */
-    public Path noticeDir() {
-        return Path.of(uploadDir, "notice");  // C:/upload_files/notice
+    /** 행사 주최측 부스 업로드 경로 */
+    public Path hboothDir() {
+        return Path.of(uploadDir, "hbooth");  // C:/upload_files/hbooth
     }
-
-    /** 게시판 업로드 경로 */
-    public Path boardDir() {
-        return Path.of(uploadDir, "board");  // C:/upload_files/board
+    
+    /** 부스 참여측 부스 업로드 경로 */
+    public Path pboothDir() {
+    	return Path.of(uploadDir, "pbooth");  // C:/upload_files/pbooth
     }
 
     /** 회원 사진 업로드 경로 */

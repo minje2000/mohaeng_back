@@ -3,6 +3,7 @@ plugins {
 	id 'war'
 	id 'org.springframework.boot' version '3.5.10'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'eclipse'
 }
 
 group = 'org.poolpool'
@@ -21,6 +22,8 @@ configurations {
 	}
 }
 
+compileJava.options.compilerArgs += ['-parameters']
+
 repositories {
 	mavenCentral()
 }
@@ -36,6 +39,13 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	//스프링 부트 웹 관련 기본 설정과 의존성 기능 제공, Restful 관련 어노테이션 제공
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	//소셜로그인 (OAuth 2.0) 인증을 위한 라이브러리 의존성 추가
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	//메일 발송 의존성 추가
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	//문자 인증 관련 의존성 추가
+	//implementation 'com.solapi:sdk:2.2.2'
+	implementation 'com.solapi:sdk:1.0.3'
 	
 	// Devtools (개발시 유용한 도구를 제공하는 라이브러리임 (자동 스타터)
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
@@ -66,9 +76,9 @@ dependencies {
 	// JSON 처리를 위한 Jackson과 연동되는 JJWT 의존성을 런타임시 추가함
 
 	// 소셜로그인 (OAuth 2.0) 인증을 위한 라이브러리 의존성 추가
-	implementation 'com.github.scribejava:scribejava-apis:8.3.3'
-	implementation 'com.github.scribejava:scribejava-core:8.3.3'
-	implementation 'org.apache.httpcomponents:httpclient:4.5.13'
+	//implementation 'com.github.scribejava:scribejava-apis:8.3.3'
+	//implementation 'com.github.scribejava:scribejava-core:8.3.3'
+	//implementation 'org.apache.httpcomponents:httpclient:4.5.13'
 	
 	//jsonObject 사용 라이브러리 의존성 추가
 	implementation 'com.googlecode.json-simple:json-simple:1.1.1'
