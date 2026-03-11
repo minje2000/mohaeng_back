@@ -1,9 +1,11 @@
 package org.poolpool.mohaeng.ai.client;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -31,8 +33,13 @@ public class AiAgentClient {
 
     /** FastAPI POST 호출 - 단일 객체 반환 */
     public <T> Mono<T> post(String uri, Object body, Class<T> responseType) {
+        return post(uri, body, responseType, null);
+    }
+
+    public <T> Mono<T> post(String uri, Object body, Class<T> responseType, Map<String, String> headers) {
         return webClient.post()
                 .uri(uri)
+                .headers(httpHeaders -> applyHeaders(httpHeaders, headers))
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()
@@ -84,5 +91,16 @@ public class AiAgentClient {
                 .uri(uri)
                 .retrieve()
                 .bodyToMono(responseType);
+    }
+
+    private void applyHeaders(HttpHeaders httpHeaders, Map<String, String> headers) {
+        if (headers == null || headers.isEmpty()) {
+            return;
+        }
+        headers.forEach((key, value) -> {
+            if (value != null && !value.isBlank()) {
+                httpHeaders.set(key, value);
+            }
+        });
     }
 }
