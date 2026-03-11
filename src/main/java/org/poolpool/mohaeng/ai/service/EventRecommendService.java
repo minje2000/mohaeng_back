@@ -21,11 +21,8 @@ import org.poolpool.mohaeng.event.list.repository.EventHashtagRepository;
 import org.poolpool.mohaeng.event.list.repository.EventRepository;
 import org.poolpool.mohaeng.event.participation.repository.EventParticipationRepository;
 import org.poolpool.mohaeng.event.wishlist.repository.EventWishlistRepository;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.multipart.MultipartFile;
 
 import lombok.RequiredArgsConstructor;
@@ -92,22 +89,23 @@ public class EventRecommendService {
         seen.addAll(pctIds);
         List<Long> historyIds = new ArrayList<>(seen);
 
-        System.out.println("=== AI 추천 디버그 ===");
-        System.out.println("userId: " + userId);
-        System.out.println("wishlistIds: " + wishlistIds);
-        System.out.println("pctIds: " + pctIds);
-        System.out.println("historyIds: " + historyIds);
-
         if (historyIds.isEmpty()) {
-            System.out.println("→ historyIds 비어있음, views순 반환");
             return eventRepository.findTop6ByEventStatusNotInOrderByViewsDesc(EXCLUDED_STATUSES);
         }
 
         List<EventEntity> historyEvents = eventRepository.findAllById(historyIds);
+
         String userText = historyEvents.stream()
             .map(this::buildEventText)
             .collect(Collectors.joining(" "));
-        System.out.println("userText 길이: " + userText.length());
+
+        // 이력 행사들의 regionId 수집
+        List<Long> userRegionIds = historyEvents.stream()
+            .map(e -> e.getRegion() != null ? e.getRegion().getRegionId() : null)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+
+        System.out.println("userRegionIds: " + userRegionIds);
 
         Set<Long> historyIdSet = new HashSet<>(historyIds);
         List<EventEntity> allEvents = eventRepository.findByEventStatusNotIn(EXCLUDED_STATUSES)
@@ -116,10 +114,7 @@ public class EventRecommendService {
             .filter(e -> e.getEmbedding() != null)
             .collect(Collectors.toList());
 
-        System.out.println("allEvents(embedding있고 이력제외): " + allEvents.size());
-
         if (allEvents.isEmpty()) {
-            System.out.println("→ allEvents 비어있음, views순 반환");
             return eventRepository.findTop6ByEventStatusNotInOrderByViewsDesc(EXCLUDED_STATUSES);
         }
 
@@ -128,18 +123,22 @@ public class EventRecommendService {
                 EventEmbedding ee = new EventEmbedding();
                 ee.setEventId(e.getEventId());
                 ee.setEmbedding(e.getEmbedding());
+                if (e.getRegion() != null) {
+                    ee.setRegionId(e.getRegion().getRegionId());
+                }
                 return ee;
             })
             .collect(Collectors.toList());
 
         RecommendRequest req = new RecommendRequest();
         req.setUserText(userText);
+        req.setUserRegionIds(userRegionIds);
         req.setEvents(eventPayload);
 
         List<Long> recommendedIds;
         try {
             recommendedIds = aiAgentClient.postLongList("/ai/recommend", req).block();
-            System.out.println("FastAPI 응답 recommendedIds: " + recommendedIds);  // ← 추가
+            System.out.println("FastAPI 응답 recommendedIds: " + recommendedIds);
         } catch (Exception e) {
             System.out.println("FastAPI 호출 실패: " + e.getMessage());
             return eventRepository.findTop6ByEventStatusNotInOrderByViewsDesc(EXCLUDED_STATUSES);
@@ -163,7 +162,7 @@ public class EventRecommendService {
         return eventRepository.findTop6ByEventStatusNotInOrderByViewsDesc(EXCLUDED_STATUSES);
     }
 
-    // ── AI 태그 추천 ───────────────────────────────────────────────
+    // AI 태그 추천
     public TagSuggestResponse suggestTags(String title, String description, MultipartFile thumbnail) {
         try {
             return aiAgentClient
