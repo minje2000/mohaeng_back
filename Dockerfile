@@ -1,17 +1,18 @@
-FROM gradle:8.7-jdk21 AS build
+# build stage
+FROM gradle:8.7-jdk21 AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 COPY . .
 
-RUN gradle build -x test
+RUN gradle clean build -x test
 
-
-FROM openjdk:21-jdk-slim
+# runtime stage
+FROM eclipse-temurin:21-jdk-jammy
 
 WORKDIR /app
 
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=builder /build/build/libs/*.jar app.jar
 
 EXPOSE 8080
 
