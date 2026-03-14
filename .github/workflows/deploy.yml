@@ -64,7 +64,7 @@ jobs:
           ${{ secrets.ECR_REGISTRY }}
 
           # 최신 이미지 가져오기
-          docker compose pull
+          docker compose pull spring
 
           # 컨테이너 재시작
-          docker compose up -d
+          docker compose up -d spring --no-deps
