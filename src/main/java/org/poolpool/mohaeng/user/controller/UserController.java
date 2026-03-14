@@ -12,12 +12,12 @@ import org.poolpool.mohaeng.auth.dto.request.LoginRequest;
 import org.poolpool.mohaeng.auth.dto.response.TokenResponse;
 import org.poolpool.mohaeng.common.api.ApiResponse;
 import org.poolpool.mohaeng.event.host.service.EventHostService;
+import org.poolpool.mohaeng.nts.service.NtsService;
 import org.poolpool.mohaeng.user.dto.SocialUserDto;
 import org.poolpool.mohaeng.user.dto.UserDto;
 import org.poolpool.mohaeng.user.service.UserService;
 import org.poolpool.mohaeng.user.type.SignupType;
 import org.poolpool.mohaeng.user.type.UserStatus;
-import org.poolpool.mohaeng.user.type.UserType;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -45,6 +45,7 @@ public class UserController {
 	private final UserService userService;
 	private final EventHostService eventHostService;
 	private final BizOcrService bizOcrService;
+	private final NtsService ntsService;
 	
 	//이메일(아이디) 중복 확인
 	@PostMapping("/checkId")
@@ -57,37 +58,9 @@ public class UserController {
 	//일반 회원가입(개인/업체)
 	@PostMapping("/createUser")
     public ResponseEntity<ApiResponse<Void>> signUp(
-    		@ModelAttribute @Valid UserDto user,
-    		@RequestPart(value = "businessFile", required = false) MultipartFile businessFile) {
+    		@ModelAttribute @Valid UserDto user) {
 
-		// 업체 회원일 경우 사업자 등록증 확인
-		if(user.getUserType() == UserType.COMPANY && businessFile != null) {
-			try {
-				BizOcrResponse ocrResult = bizOcrService.extractBusinessInfo(businessFile);
-				
-				String businessNum = ocrResult.getBusinessNumber();
-				String ownerName = ocrResult.getOwnerName();
-				String openDate = ocrResult.getOpenDate();
-				
-				if(businessNum.isEmpty() || ownerName.isEmpty() || openDate.isEmpty()) {
-					return ResponseEntity.status(500)
-				            .body(ApiResponse.fail("사업자 등록증 OCR 중 오류 발생하여 회원 가입 실패", null));
-				}
-				
-				// 로그 확인
-				System.out.println("사업자번호: " + businessNum);
-				System.out.println("대표자명: " + ownerName);
-				System.out.println("개업일자: " + openDate);			
-				
-				user.setBusinessNum(businessNum);
-			} catch (Exception e) {
-				return ResponseEntity.status(500)
-			            .body(ApiResponse.fail("사업자 등록증 OCR 중 오류 발생하여 회원 가입 실패", null));
-			}
-		}
-		
-//		int result = userService.insertUser(user);
-		int result = 2;
+		int result = userService.insertUser(user);
         
         if (result > 0) {
             return ResponseEntity.status(201).body(ApiResponse.ok("회원 가입 성공", null));
@@ -226,48 +199,51 @@ public class UserController {
 	@PostMapping(value = "/verifyBiz", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<ApiResponse<Map<String, Object>>> verifyBiz(
 	        @RequestPart("businessFile") MultipartFile businessFile) {
-	    try {
+		try {
+
+	        // FastAPI OCR 호출
 	        BizOcrResponse ocrResult = bizOcrService.extractBusinessInfo(businessFile);
 
-	        String businessNum = ocrResult.getBusinessNumber();
+	        String businessNum = ocrResult.getBusinessNumber().replace("-", "");
 	        String ownerName   = ocrResult.getOwnerName();
 	        String openDate    = ocrResult.getOpenDate();
 	        
-	        log.info("===== 사업자 인증 결과 =====");
-	        log.info("사업자번호: {}", businessNum);
-	        log.info("대표자명: {}", ownerName);
-	        log.info("개업일자: {}", openDate);
-	        log.info("회사명: {}", ocrResult.getCompanyName());
-	        log.info("isValid: {}", ocrResult.getIsValid());
-	        log.info("validationStatus: {}", ocrResult.getValidationStatus());
-	        log.info("validationMessage: {}", ocrResult.getValidationMessage());
-	        log.info("===========================");
+	        System.out.println("businessNum : "+ businessNum);
+	        System.out.println("ownerName : "+ ownerName);
+	        System.out.println("openDate : "+ openDate);
 
-	        if (businessNum.isEmpty() || ownerName.isEmpty() || openDate.isEmpty()) {
-	            return ResponseEntity.status(400)
-	                .<ApiResponse<Map<String, Object>>>body(
-	                    ApiResponse.fail("인증 실패", null));
-	        }
-
+	        // 국세청 상태 조회
+	        int status = ntsService.getStatus(businessNum);
+	        
 	        Map<String, Object> result = new HashMap<>();
-	        result.put("businessNumber", businessNum);
-	        result.put("companyName",    ocrResult.getCompanyName());
-	        result.put("ownerName",      ownerName);
-	        result.put("isValid",        ocrResult.getIsValid());
-	        result.put("message",        ocrResult.getValidationMessage());
+	        result.put("businessNum", ocrResult.getBusinessNumber());
+	        result.put("companyName", ocrResult.getCompanyName());
 
-	        if (Boolean.FALSE.equals(ocrResult.getIsValid())) {
+	        if(status == 2){
 	            return ResponseEntity.status(400)
-	                .<ApiResponse<Map<String, Object>>>body(
-	                    ApiResponse.fail(ocrResult.getValidationMessage(), null));
+	                    .body(ApiResponse.fail("휴업 사업자로 가입이 불가합니다.", null));
+	        }else if(status == 3){
+	            return ResponseEntity.status(400)
+	                    .body(ApiResponse.fail("폐업 사업자입니다.", null));
+	        }else if(status == -99){
+	        	return ResponseEntity.status(401)
+	        			.body(ApiResponse.fail("존재하지 않는 사업자 등록번호입니다.", result));
 	        }
 
-	        return ResponseEntity.ok(ApiResponse.ok("인증 성공", result));
+	        // 진위확인
+	        boolean isValid = ntsService.validateBiz(businessNum, ownerName, openDate);
+
+	        if(!isValid){
+	            return ResponseEntity.status(400)
+	                    .body(ApiResponse.fail("사업자 정보가 불일치 합니다.", null));
+	        }
+
+	        return ResponseEntity.ok(ApiResponse.ok("인증되었습니다.", result));
 
 	    } catch (Exception e) {
+
 	        return ResponseEntity.status(500)
-	            .<ApiResponse<Map<String, Object>>>body(
-	                ApiResponse.fail("사업자 인증 중 오류가 발생했습니다.", null));
+	                .body(ApiResponse.fail("사업자 인증 중 오류가 발생했습니다.", null));
 	    }
 	}
 	
