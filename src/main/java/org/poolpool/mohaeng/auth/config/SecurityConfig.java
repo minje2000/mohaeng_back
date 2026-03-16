@@ -25,6 +25,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.client.RestTemplate;
 
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
@@ -96,20 +97,18 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // React static + SPA entry (절대 "/**" permitAll 금지)
             	.dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
-                .requestMatchers(HttpMethod.GET,
-                        "/", "/index.html",
-                        "/favicon.ico", "/manifest.json", "/robots.txt",
-                        "/assets/**", "/static/**",
-                        "/*.js", "/*.css", "/*.map", "/geo/**",
-                        "/*.png", "/*.jpg", "/*.jpeg", "/*.gif", "/*.svg", "/*.webp", "/*.ico",
-                        "/error"
-                ).permitAll()
+//                .requestMatchers(HttpMethod.GET,
+//                        "/", "/index.html",
+//                        "/favicon.ico", "/manifest.json", "/robots.txt",
+//                        "/assets/**", "/static/**",
+//                        "/*.js", "/*.css", "/*.map", "/geo/**",
+//                        "/*.png", "/*.jpg", "/*.jpeg", "/*.gif", "/*.svg", "/*.webp", "/*.ico",
+//                        "/error"
+//                ).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                 // auth endpoints
                 .requestMatchers("/auth/**").permitAll()
-                
-                .requestMatchers(HttpMethod.GET, "/api/eventParticipation/check/**").permitAll()
                 
                 // 업로드 파일 접근 권한
                 .requestMatchers("/upload_files/**").permitAll()
@@ -185,9 +184,14 @@ public class SecurityConfig {
     }
     
     @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+    
+    @Bean
     public org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring()
                 .requestMatchers(org.springframework.boot.autoconfigure.security.servlet.PathRequest.toStaticResources().atCommonLocations())
-                .requestMatchers("/favicon.ico", "/manifest.json", "/*.png", "/error"); // 💡 여기도 error 추가
+                .requestMatchers("/favicon.ico", "/manifest.json", "/*.png", "/error"); 
     }
 }
