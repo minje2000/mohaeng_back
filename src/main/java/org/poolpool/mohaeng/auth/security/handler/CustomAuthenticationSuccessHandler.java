@@ -59,7 +59,7 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             socialCookie.setHttpOnly(false); // JS 접근 허용
             response.addCookie(socialCookie);
 
-            response.sendRedirect("/socialSignup");
+            response.sendRedirect("http://localhost:3000/socialSignup");
             return;
         }
 
@@ -72,7 +72,7 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         LocalDateTime now = LocalDateTime.now();
         refreshTokenService.upsert(userId, refresh, now, now.plusDays(1));
 
-        String redirectUrl = "/oauthSuccess?accessToken=" + access + "&refreshToken=" + refresh + "&isNewUser=" + isNewUser;
+        String redirectUrl = "http://localhost:3000/oauthSuccess?accessToken=" + access + "&refreshToken=" + refresh + "&isNewUser=" + isNewUser;
         response.sendRedirect(redirectUrl);
     }
 }
