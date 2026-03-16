@@ -148,7 +148,6 @@ public class SecurityConfig {
                 	    "/api/events/**",
                 	    "/api/reviews/**",
                 	    "/api/wishlist/**",
-                	    "/api/notifications/**",
                 	    "/api/ai/**"
                 	).permitAll()
 
