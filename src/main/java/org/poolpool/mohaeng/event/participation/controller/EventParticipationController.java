@@ -150,7 +150,7 @@ public class EventParticipationController {
                 if (file.isEmpty()) continue;
                 String originalName = file.getOriginalFilename();
                 try {
-                    String savedName = s3StorageService.upload(file, "pbooth");
+                    String savedName = s3StorageService.upload(file, "participant-booth");
                     FileEntity fileEntity = FileEntity.builder()
                             .event(eventEntity)
                             .pctBooth(booth)
