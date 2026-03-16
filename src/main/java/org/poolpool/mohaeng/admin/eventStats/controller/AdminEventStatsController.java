@@ -13,9 +13,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/admin/eventstats")
+@RequestMapping("/api/mypage/eventstats") 
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 public class AdminEventStatsController {
 
     private final AdminEventStatsService service;

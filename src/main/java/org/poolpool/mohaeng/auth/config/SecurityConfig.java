@@ -97,20 +97,20 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // React static + SPA entry (절대 "/**" permitAll 금지)
             	.dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
-                .requestMatchers(HttpMethod.GET,
-                        "/", "/index.html",
-                        "/favicon.ico", "/manifest.json", "/robots.txt",
-                        "/assets/**", "/static/**",
-                        "/*.js", "/*.css", "/*.map", "/geo/**",
-                        "/*.png", "/*.jpg", "/*.jpeg", "/*.gif", "/*.svg", "/*.webp", "/*.ico",
-                        "/error"
-                ).permitAll()
+//                .requestMatchers(HttpMethod.GET,
+//                        "/", "/index.html",
+//                        "/favicon.ico", "/manifest.json", "/robots.txt",
+//                        "/assets/**", "/static/**",
+//                        "/*.js", "/*.css", "/*.map", "/geo/**",
+//                        "/*.png", "/*.jpg", "/*.jpeg", "/*.gif", "/*.svg", "/*.webp", "/*.ico",
+//                        "/error"
+//                ).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                
+                .requestMatchers(HttpMethod.GET, "/api/mypage/eventstats/**").hasAnyRole("USER", "ADMIN")
 
                 // auth endpoints
                 .requestMatchers("/auth/**").permitAll()
-                
-                .requestMatchers(HttpMethod.GET, "/api/eventParticipation/check/**").permitAll()
                 
                 // 업로드 파일 접근 권한
                 .requestMatchers("/upload_files/**").permitAll()
@@ -120,10 +120,9 @@ public class SecurityConfig {
 
                 // PUBLIC POST
                 .requestMatchers(HttpMethod.POST, EndpointPolicy.PUBLIC_POST).permitAll()
-                
-                .requestMatchers(HttpMethod.POST, "/api/user/verifyBiz").permitAll()
 
                 // ADMIN only
+                .requestMatchers(HttpMethod.GET, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
@@ -149,7 +148,6 @@ public class SecurityConfig {
                 	    "/api/events/**",
                 	    "/api/reviews/**",
                 	    "/api/wishlist/**",
-                	    "/api/notifications/**",
                 	    "/api/ai/**"
                 	).permitAll()
 
@@ -195,6 +193,6 @@ public class SecurityConfig {
     public org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring()
                 .requestMatchers(org.springframework.boot.autoconfigure.security.servlet.PathRequest.toStaticResources().atCommonLocations())
-                .requestMatchers("/favicon.ico", "/manifest.json", "/*.png", "/error"); // 💡 여기도 error 추가
+                .requestMatchers("/favicon.ico", "/manifest.json", "/*.png", "/error"); 
     }
 }

@@ -41,11 +41,10 @@ public class EventController {
             @RequestParam(name = "topicIds", required = false) List<String> topicIds,
             @RequestParam(name = "checkFree", defaultValue = "false") boolean checkFree,
             @RequestParam(name = "hideClosed", defaultValue = "false") boolean hideClosed,
-            @RequestParam(name = "eventStatus", required = false) String eventStatus, // ✅ Issue 5
-            @RequestParam(name = "status", required = false) String status,           // 기존 호환
+            @RequestParam(name = "eventStatus", required = false) String eventStatus,
+            @RequestParam(name = "status", required = false) String status,
             @PageableDefault(size = 12) Pageable pageable) {
 
-        // eventStatus 또는 status 파라미터 중 하나를 사용
         String resolvedStatus = (eventStatus != null && !eventStatus.isBlank()) ? eventStatus : status;
 
         Page<EventDto> result = eventService.searchEvents(
@@ -63,7 +62,15 @@ public class EventController {
         boolean isViewed = (viewedEvents != null && viewedEvents.contains("[" + eventId + "]"));
         EventDetailDto detail = eventService.getEventDetail(eventId, !isViewed);
 
-        if (!isViewed) {
+        String moderationStatus = detail != null
+                && detail.getEventInfo() != null
+                ? detail.getEventInfo().getModerationStatus()
+                : null;
+
+        boolean blockedModeration =
+                "승인대기".equals(moderationStatus) || "반려".equals(moderationStatus);
+
+        if (!isViewed && !blockedModeration) {
             String newValue = (viewedEvents == null ? "" : viewedEvents) + "[" + eventId + "]";
             ResponseCookie cookie = ResponseCookie.from("viewedEvents", newValue)
                     .path("/")
@@ -71,10 +78,12 @@ public class EventController {
                     .httpOnly(true)
                     .secure(false)
                     .build();
+
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, cookie.toString())
                     .body(detail);
         }
+
         return ResponseEntity.ok(detail);
     }
 
