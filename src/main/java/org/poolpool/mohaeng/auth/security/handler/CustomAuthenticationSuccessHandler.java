@@ -58,7 +58,7 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             socialCookie.setHttpOnly(false); // JS 접근 허용
             response.addCookie(socialCookie);
 
-            // ✅ 프론트 주소로 리다이렉트
+            // 프론트 주소로 리다이렉트
             response.sendRedirect(frontendUrl + "/socialSignup");
             return;
         }
@@ -72,7 +72,7 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         LocalDateTime now = LocalDateTime.now();
         refreshTokenService.upsert(userId, refresh, now, now.plusDays(1));
 
-        // ✅ 프론트 주소로 리다이렉트
+        // 프론트 주소로 리다이렉트
         String redirectUrl = frontendUrl + "/oauthSuccess?accessToken=" + access + "&refreshToken=" + refresh + "&isNewUser=" + isNewUser;
         response.sendRedirect(redirectUrl);
     }

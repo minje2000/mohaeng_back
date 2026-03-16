@@ -49,7 +49,7 @@ public class BizOcrService {
         request.put("imageBase64", base64Image);
 
         return aiAgentClient
-                .post("/biz/signup/ocr", request, BizOcrResponse.class)
+                .post("/ai/bizOcr", request, BizOcrResponse.class)
                 .block();
     }
 }
