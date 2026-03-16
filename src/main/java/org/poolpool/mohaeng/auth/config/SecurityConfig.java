@@ -106,6 +106,8 @@ public class SecurityConfig {
 //                        "/error"
 //                ).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                
+                .requestMatchers(HttpMethod.GET, "/api/mypage/eventstats/**").hasAnyRole("USER", "ADMIN")
 
                 // auth endpoints
                 .requestMatchers("/auth/**").permitAll()
