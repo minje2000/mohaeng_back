@@ -141,7 +141,7 @@ public interface EventRepository extends JpaRepository<EventEntity, Long> {
     	    "  AND e2.region_id BETWEEN :regionMin AND :regionMax " +  // ✅ 서브쿼리 안에서 먼저 필터 → 성능도 좋아짐
     	    ") d ON e.event_id = d.event_id " +
     	    "WHERE e.region_id BETWEEN :regionMin AND :regionMax " +   // ✅ JOIN 없이 직접 비교
-    	    "AND e.event_status NOT IN ('DELETED', 'REPORT_DELETED', 'report_deleted', '행사삭제', '행사종료') " +
+    	    "AND e.event_status NOT IN ('DELETED', 'REPORT_DELETED', 'report_deleted', '행사삭제') " +
     	    "AND e.moderation_status = '승인' " +
     	    "GROUP BY DATE(d.date) ORDER BY DATE(d.date)",
     	    nativeQuery = true)
