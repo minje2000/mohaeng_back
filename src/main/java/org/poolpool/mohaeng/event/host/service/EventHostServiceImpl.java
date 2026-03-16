@@ -52,7 +52,7 @@ public class EventHostServiceImpl implements EventHostService {
     private final UserRepository userRepository;
     private final AiModerationClient aiModerationClient;
 
-    @Value("${ai.moderation.threshold:0.50}")
+    @Value("${ai.moderation.threshold:0.70}")
     private BigDecimal moderationThreshold;
 
     @Override
