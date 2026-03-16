@@ -121,6 +121,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, EndpointPolicy.PUBLIC_POST).permitAll()
 
                 // ADMIN only
+                .requestMatchers(HttpMethod.GET, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
