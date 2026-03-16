@@ -207,10 +207,17 @@ public class UserController {
 	        String businessNum = ocrResult.getBusinessNumber().replace("-", "");
 	        String ownerName   = ocrResult.getOwnerName();
 	        String openDate    = ocrResult.getOpenDate();
+	        String taxType    = ocrResult.getTaxType();
 	        
 	        System.out.println("businessNum : "+ businessNum);
 	        System.out.println("ownerName : "+ ownerName);
 	        System.out.println("openDate : "+ openDate);
+	        System.out.println("taxType : "+ taxType);
+	        
+	        if(businessNum.equals("") || ownerName.equals("") || openDate.equals("")) {
+	        	return ResponseEntity.status(400)
+        				.body(ApiResponse.fail("파일 해상도가 낮아 텍스트를 인식할 수 없습니다. 다시 업로드해 주세요.", null));
+	        }
 
 	        // 국세청 상태 조회
 	        int status = ntsService.getStatus(businessNum);
@@ -230,12 +237,15 @@ public class UserController {
 	        			.body(ApiResponse.fail("존재하지 않는 사업자 등록번호입니다.", result));
 	        }
 
-	        // 진위확인
-	        boolean isValid = ntsService.validateBiz(businessNum, ownerName, openDate);
-
-	        if(!isValid){
-	            return ResponseEntity.status(400)
-	                    .body(ApiResponse.fail("사업자 정보가 불일치 합니다.", null));
+	        // 법인 사업자가 아닐 경우 진위 확인
+	        if (!taxType.equals("법인사업자")) {	        	
+	        	// 진위 확인
+	        	boolean isValid = ntsService.validateBiz(businessNum, ownerName, openDate);
+	        	
+	        	if(!isValid){
+	        		return ResponseEntity.status(400)
+	        				.body(ApiResponse.fail("사업자 정보가 불일치 합니다.", null));
+	        	}
 	        }
 
 	        return ResponseEntity.ok(ApiResponse.ok("인증되었습니다.", result));

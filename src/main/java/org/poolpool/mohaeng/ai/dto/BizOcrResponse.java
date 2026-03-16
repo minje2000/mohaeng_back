@@ -8,6 +8,7 @@ public class BizOcrResponse {
     private String companyName;
     private String ownerName;
     private String openDate;
+    private String taxType;
     private String validationStatus;
     private String validationMessage;
 }
