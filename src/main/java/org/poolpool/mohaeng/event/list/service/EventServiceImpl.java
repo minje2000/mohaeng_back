@@ -127,16 +127,22 @@ public class EventServiceImpl implements EventService {
         Long regionMax = null;
 
         if (regionId != null) {
-            // 시/도 단위 (끝 8자리가 0)
-            if (regionId % 100000000L == 0) {
-                String prefix = String.valueOf(regionId).substring(0, 2);
-                regionMin = Long.parseLong(prefix + "00000000");
-                regionMax = Long.parseLong(prefix + "99999999");
-            } else {
-                // 구/군 단위 → 해당 구/군 내 모든 동/읍/면 포함
-                regionMin = regionId;
-                regionMax = regionId + 999999L;
-            }
+        	if (regionId != null) {
+        	    String idStr = String.valueOf(regionId);
+        	    String nonZero = idStr.replaceAll("0+$", "");
+        	    String prefix;
+
+        	    if (nonZero.length() <= 2) {
+        	        prefix = idStr.substring(0, 2);  // 시/도 단위
+        	    } else if (nonZero.length() <= 4) {
+        	        prefix = idStr.substring(0, 4);  // 시/군 단위
+        	    } else {
+        	        prefix = nonZero;               // 구/읍/면/동 단위
+        	    }
+
+        	    regionMin = Long.parseLong(prefix + "0".repeat(10 - prefix.length()));
+        	    regionMax = Long.parseLong(prefix + "9".repeat(10 - prefix.length()));
+        	}
         }
 
         LocalDate today = LocalDate.now();
