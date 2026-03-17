@@ -8,4 +8,5 @@ import lombok.Setter;
 public class AdminContactRequestDto {
     private String sessionId;
     private String content;
+    private String source;
 }
