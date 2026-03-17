@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import org.poolpool.mohaeng.ai.client.AiModerationClient;
 import org.poolpool.mohaeng.ai.dto.AiModerationRequestDto;
 import org.poolpool.mohaeng.ai.dto.AiModerationResponseDto;
+import org.poolpool.mohaeng.ai.service.EventRecommendService;
 import org.poolpool.mohaeng.event.host.dto.EventCreateDto;
 import org.poolpool.mohaeng.event.host.dto.HostEventMypageResponse;
 import org.poolpool.mohaeng.event.host.dto.HostEventSummaryDto;
@@ -51,6 +52,7 @@ public class EventHostServiceImpl implements EventHostService {
     private final S3StorageService s3StorageService;
     private final UserRepository userRepository;
     private final AiModerationClient aiModerationClient;
+    private final EventRecommendService eventRecommendService;
 
     @Value("${ai.moderation.threshold:0.70}")
     private BigDecimal moderationThreshold;
@@ -161,6 +163,12 @@ public class EventHostServiceImpl implements EventHostService {
             if (!facilityEntities.isEmpty()) {
                 hostFacilityRepository.saveAll(facilityEntities);
             }
+        }
+        
+        try {
+            eventRecommendService.saveEmbedding(savedEvent);
+        } catch (Exception e) {
+            System.out.println("임베딩 저장 실패 (행사 등록에는 영향 없음): " + e.getMessage());
         }
 
         return eventId;

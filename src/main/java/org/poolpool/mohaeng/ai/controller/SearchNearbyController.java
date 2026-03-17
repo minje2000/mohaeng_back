@@ -1,12 +1,22 @@
 package org.poolpool.mohaeng.ai.controller;
 
-import lombok.RequiredArgsConstructor;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Map;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/ai/nearby")
@@ -15,7 +25,7 @@ public class SearchNearbyController {
 
     private final RestTemplate restTemplate;
 
-    @Value("${ai.server.url:http://localhost:8000}")
+    @Value("${ai.base-url}")
     private String aiServerUrl;
 
     /**
@@ -33,24 +43,27 @@ public class SearchNearbyController {
      * }
      */
     @PostMapping("/course")
-    public ResponseEntity<?> getTravelCourse(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> getTravelCourse(
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpRequest) {
+
+        // 비회원 체크
+        String header = httpRequest.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("message", "로그인 후 사용 가능한 서비스입니다."));
+        }
+
         try {
             String url = aiServerUrl + "/ai/nearby/course";
-
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
-
             ResponseEntity<Object> response = restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                entity,
-                Object.class
+                url, HttpMethod.POST, entity, Object.class
             );
-
             return ResponseEntity.ok(response.getBody());
-
         } catch (Exception e) {
             return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

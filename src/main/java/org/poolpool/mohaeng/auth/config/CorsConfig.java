@@ -17,7 +17,9 @@ public class CorsConfig {
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
                 "http://127.0.0.1:3000",
-                "http://3.35.16.158"
+                "http://3.35.16.158",
+                "https://mohaeng.com",
+                "http://mohaeng.com"
         ));
 
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
