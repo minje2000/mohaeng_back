@@ -6,8 +6,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.solapi.sdk.message.model.Message;
-import com.solapi.sdk.message.service.DefaultMessageService;
+import net.nurigo.sdk.message.model.Message;
+import net.nurigo.sdk.message.service.DefaultMessageService;
+import net.nurigo.sdk.message.request.SingleMessageSendingRequest;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,14 +33,16 @@ public class SmsService {
 
     	String authCode = String.valueOf((int)((Math.random() * 900000) + 100000));
     	
-    	DefaultMessageService messageService = new DefaultMessageService(apiKey, apiSecret, "https://api.solapi.com");
-    	Message message = new Message();
-    	message.setFrom(fromNumber);
-    	message.setTo(phone);
-    	message.setText("[모행] 본인 확인 인증번호 [" + authCode + "]입니다.");
+    	DefaultMessageService messageService =
+    		    new DefaultMessageService(apiKey, apiSecret, "https://api.solapi.com");
+
+    		Message message = new Message();
+    		message.setFrom(fromNumber);
+    		message.setTo(phone);
+    		message.setText("[모행] 본인 확인 인증번호 [" + authCode + "]입니다.");
 
     	try {
-    	  messageService.send(message);
+    		messageService.sendOne(new SingleMessageSendingRequest(message));
     	  authStore.put(phone, authCode);
     	  return true;
     	} catch (Exception exception) {
@@ -55,7 +58,7 @@ public class SmsService {
         String savedCode = authStore.get(phone);
 
         if (savedCode != null && savedCode.equals(code)) {
-//            authStore.remove(phone);
+            authStore.remove(phone);
             return true;
         }
         return false;
