@@ -15,7 +15,7 @@ public class SearchNearbyController {
 
     private final RestTemplate restTemplate;
 
-    @Value("${ai.server.url:http://localhost:8000}")
+    @Value("${ai.base-url}")
     private String aiServerUrl;
 
     /**
