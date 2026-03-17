@@ -38,6 +38,7 @@ public class EventDto {
     private Integer currentParticipantCount;
     private Integer views;
     private String eventStatus;
+    private String moderationStatus;   // 추가
     private String lotNumberAdr;
     private String detailAdr;
     private String zipCode;
@@ -87,6 +88,7 @@ public class EventDto {
                 .capacity(entity.getCapacity())
                 .views(entity.getViews())
                 .eventStatus(entity.getEventStatus())
+                .moderationStatus(entity.getModerationStatus())   // 추가
                 .lotNumberAdr(entity.getLotNumberAdr())
                 .detailAdr(entity.getDetailAdr())
                 .zipCode(entity.getZipCode())
@@ -129,10 +131,10 @@ public class EventDto {
                 .category(this.category != null ? this.category.toEntity() : null)
                 .region(this.region != null ? this.region.toEntity() : null)
                 .createdAt(this.createdAt != null ? this.createdAt : LocalDateTime.now())
-                // 수동 삭제 상태는 날짜 재계산 없이 그대로 보존
                 .eventStatus(shouldPreserveStatus(this.eventStatus)
                         ? this.eventStatus
                         : calculateEventStatus())
+                .moderationStatus(this.moderationStatus)   // 추가
                 .views(this.views != null ? this.views : 0)
                 .build();
     }

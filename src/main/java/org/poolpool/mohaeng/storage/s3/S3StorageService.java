@@ -37,6 +37,7 @@ public class S3StorageService {
             return null;
         }
 
+        String normalizedDir = normalizeDir(dir);
         String originalName = file.getOriginalFilename();
         String ext = "";
 
@@ -45,7 +46,7 @@ public class S3StorageService {
         }
 
         String savedName = UUID.randomUUID() + ext;
-        String key = dir + "/" + savedName;
+        String key = normalizedDir + "/" + savedName;
 
         try (InputStream inputStream = file.getInputStream()) {
             PutObjectRequest request = PutObjectRequest.builder()
@@ -65,6 +66,8 @@ public class S3StorageService {
         if (fileUrl == null || fileUrl.isBlank()) {
             return null;
         }
+
+        String normalizedDir = normalizeDir(dir);
 
         try {
             URL url = new URL(fileUrl);
@@ -88,7 +91,7 @@ public class S3StorageService {
             }
 
             String savedName = UUID.randomUUID() + ext;
-            String key = dir + "/" + savedName;
+            String key = normalizedDir + "/" + savedName;
 
             try (InputStream inputStream = connection.getInputStream()) {
                 byte[] bytes = inputStream.readAllBytes();
@@ -121,7 +124,7 @@ public class S3StorageService {
 
         s3Client.deleteObject(DeleteObjectRequest.builder()
                 .bucket(bucket)
-                .key(key)
+                .key(resolveKey(null, key))
                 .build());
     }
 
@@ -174,6 +177,7 @@ public class S3StorageService {
             return null;
         }
 
+        String normalizedDir = normalizeDir(dir);
         String value = storedValue.trim();
 
         if (value.startsWith("http://") || value.startsWith("https://")) {
@@ -193,12 +197,35 @@ public class S3StorageService {
             value = value.substring("upload_files/".length());
         }
 
-        if (value.startsWith(dir + "/")) {
+        int firstSlash = value.indexOf('/');
+        if (firstSlash > 0) {
+            String firstSegment = value.substring(0, firstSlash);
+            String remainder = value.substring(firstSlash + 1);
+            String mappedDir = normalizeDir(firstSegment);
+            if (normalizedDir == null || normalizedDir.equals(mappedDir)) {
+                return mappedDir + "/" + remainder;
+            }
+        }
+
+        if (normalizedDir == null) {
             return value;
         }
 
         int idx = value.lastIndexOf('/');
         String filenameOnly = idx >= 0 ? value.substring(idx + 1) : value;
-        return dir + "/" + filenameOnly;
+        return normalizedDir + "/" + filenameOnly;
+    }
+
+    private String normalizeDir(String dir) {
+        if (dir == null || dir.isBlank()) {
+            return dir;
+        }
+
+        return switch (dir.trim()) {
+            case "hbooth", "host-booth" -> "host-booth";
+            case "pbooth", "participant-booth" -> "participant-booth";
+            case "profile", "photo" -> "photo";
+            default -> dir.trim();
+        };
     }
 }

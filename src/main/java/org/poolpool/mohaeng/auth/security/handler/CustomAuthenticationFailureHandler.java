@@ -2,16 +2,22 @@ package org.poolpool.mohaeng.auth.security.handler;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
+
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class CustomAuthenticationFailureHandler implements AuthenticationFailureHandler {
-    @Override
+	@Value("${app.frontend.url}")
+    private String frontendUrl;
+	
+	@Override
     public void onAuthenticationFailure(HttpServletRequest request,
                                         HttpServletResponse response,
                                         AuthenticationException exception) throws IOException {
@@ -38,6 +44,6 @@ public class CustomAuthenticationFailureHandler implements AuthenticationFailure
         cookie.setMaxAge(10);
         cookie.setHttpOnly(false);
         response.addCookie(cookie);
-        response.sendRedirect("/oauthFailure");
+        response.sendRedirect(frontendUrl + "/oauthFailure");
     }
 }
