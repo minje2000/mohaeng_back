@@ -127,19 +127,22 @@ public class EventServiceImpl implements EventService {
         Long regionMax = null;
 
         if (regionId != null) {
-            String idStr = String.valueOf(regionId);
-            String prefix = idStr.replaceAll("0+$", "");
-            if (prefix.length() < 2) prefix = idStr.substring(0, 2);
+        	if (regionId != null) {
+        	    String idStr = String.valueOf(regionId);
+        	    String nonZero = idStr.replaceAll("0+$", "");
+        	    String prefix;
 
-            StringBuilder minSb = new StringBuilder(prefix);
-            StringBuilder maxSb = new StringBuilder(prefix);
-            while (minSb.length() < 10) {
-                minSb.append("0");
-                maxSb.append("9");
-            }
+        	    if (nonZero.length() <= 2) {
+        	        prefix = idStr.substring(0, 2);  // 시/도 단위
+        	    } else if (nonZero.length() <= 4) {
+        	        prefix = idStr.substring(0, 4);  // 시/군 단위
+        	    } else {
+        	        prefix = nonZero;               // 구/읍/면/동 단위
+        	    }
 
-            regionMin = Long.parseLong(minSb.toString());
-            regionMax = Long.parseLong(maxSb.toString());
+        	    regionMin = Long.parseLong(prefix + "0".repeat(10 - prefix.length()));
+        	    regionMax = Long.parseLong(prefix + "9".repeat(10 - prefix.length()));
+        	}
         }
 
         LocalDate today = LocalDate.now();
@@ -206,21 +209,21 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public List<EventDailyCountDto> getDailyEventCountsByRegion(Long regionId) {
-        String idStr = String.valueOf(regionId);
-        String prefix = idStr.replaceAll("0+$", "");
-        if (prefix.length() < 2) prefix = idStr.substring(0, 2);
+        long regionMin;
+        long regionMax;
 
-        StringBuilder minSb = new StringBuilder(prefix);
-        StringBuilder maxSb = new StringBuilder(prefix);
-        while (minSb.length() < 10) {
-            minSb.append("0");
-            maxSb.append("9");
+        if (regionId % 100000000L == 0) {
+            // 시/도 단위
+            String prefix = String.valueOf(regionId).substring(0, 2);
+            regionMin = Long.parseLong(prefix + "00000000");
+            regionMax = Long.parseLong(prefix + "99999999");
+        } else {
+            // 구/군 단위
+            regionMin = regionId;
+            regionMax = regionId + 999999L;
         }
 
-        return eventRepository.countDailyEventsByRegion(
-                Long.parseLong(minSb.toString()),
-                Long.parseLong(maxSb.toString())
-        );
+        return eventRepository.countDailyEventsByRegion(regionMin, regionMax);
     }
 
     private String emptyToNull(String s) {
