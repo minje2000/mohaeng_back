@@ -17,7 +17,7 @@ public class EventStatusScheduler {
     @Scheduled(cron = "0 * * * * *")
     @Transactional
     public void updateAllEventStatuses() {
-        log.info("=== 행사 상태 자동 업데이트 스케줄러 시작 ===");
+        // log.info("=== 행사 상태 자동 업데이트 스케줄러 시작 ===");
         
         LocalDate today = LocalDate.now();
         List<EventEntity> events = eventRepository.findAllForScheduler();
@@ -32,10 +32,10 @@ public class EventStatusScheduler {
             if (!newStatus.equals(currentStatus)) {
                 event.setEventStatus(newStatus);
                 updatedCount++;
-                log.debug("행사 ID {}: 상태 변경 [{} -> {}]", event.getEventId(), currentStatus, newStatus);
+                // log.debug("행사 ID {}: 상태 변경 [{} -> {}]", event.getEventId(), currentStatus, newStatus);
             }
         }
-        log.info("=== 행사 상태 업데이트 완료 (총 {}건 변경) ===", updatedCount);
+        // log.info("=== 행사 상태 업데이트 완료 (총 {}건 변경) ===", updatedCount);
     }
 
     /**
