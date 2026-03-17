@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 public class AiAdminProxyService {
@@ -29,21 +30,35 @@ public class AiAdminProxyService {
         return headers;
     }
 
-    public Object getContacts() {
+    public Object getContacts(Integer limit) {
+        String url = UriComponentsBuilder
+                .fromHttpUrl(aiBaseUrl + "/ai/admin/contacts")
+                .queryParam("limit", limit == null ? 200 : limit)
+                .toUriString();
         ResponseEntity<Object> response = restTemplate.exchange(
-                aiBaseUrl + "/ai/admin/contacts",
+                url,
                 HttpMethod.GET,
-                new HttpEntity<>(headers()),
+                new HttpEntity<>(null, headers()),
                 Object.class
         );
         return response.getBody();
     }
 
-    public Object answerContact(Long itemId, Map<String, Object> payload) {
+    public Object updateContact(String itemId, Map<String, Object> payload) {
         ResponseEntity<Object> response = restTemplate.exchange(
                 aiBaseUrl + "/ai/admin/contacts/" + itemId,
                 HttpMethod.PUT,
                 new HttpEntity<>(payload, headers()),
+                Object.class
+        );
+        return response.getBody();
+    }
+
+    public Object deleteContact(String itemId) {
+        ResponseEntity<Object> response = restTemplate.exchange(
+                aiBaseUrl + "/ai/admin/contacts/" + itemId + "/delete",
+                HttpMethod.POST,
+                new HttpEntity<>(null, headers()),
                 Object.class
         );
         return response.getBody();
@@ -54,7 +69,7 @@ public class AiAdminProxyService {
         ResponseEntity<Object> response = restTemplate.exchange(
                 url,
                 HttpMethod.GET,
-                new HttpEntity<>(headers()),
+                new HttpEntity<>(null, headers()),
                 Object.class
         );
         return response.getBody();
