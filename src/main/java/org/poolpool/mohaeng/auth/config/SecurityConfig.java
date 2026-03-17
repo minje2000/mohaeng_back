@@ -106,6 +106,8 @@ public class SecurityConfig {
 //                        "/error"
 //                ).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                
+                .requestMatchers(HttpMethod.GET, "/api/mypage/eventstats/**").hasAnyRole("USER", "ADMIN")
 
                 // auth endpoints
                 .requestMatchers("/auth/**").permitAll()
@@ -120,6 +122,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, EndpointPolicy.PUBLIC_POST).permitAll()
 
                 // ADMIN only
+                .requestMatchers(HttpMethod.GET, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, EndpointPolicy.ADMIN_PAGE).hasRole("ADMIN")
@@ -145,7 +148,6 @@ public class SecurityConfig {
                 	    "/api/events/**",
                 	    "/api/reviews/**",
                 	    "/api/wishlist/**",
-                	    "/api/notifications/**",
                 	    "/api/ai/**"
                 	).permitAll()
 

@@ -13,6 +13,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,6 +84,9 @@ public class AdminEventStatsServiceImpl implements AdminEventStatsService {
     public AdminEventStatsDto.EventAnalysisDetailResponse getEventAnalysis(Long eventId) {
         EventEntity event = repository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("해당 행사를 찾을 수 없습니다."));
+
+        // ✅ 본인 행사인지 확인
+        checkHost(event);
 
         // 참여자 수
         Long participantCountRaw = repository.countParticipantsByEventId(eventId);
@@ -175,13 +180,19 @@ public class AdminEventStatsServiceImpl implements AdminEventStatsService {
                 .maleCount(maleCount)
                 .femaleCount(femaleCount)
                 .ageGroupCounts(ageGroupCounts)
-                .rootCounts(rootCounts)   // ✅ 추가
+                .rootCounts(rootCounts)
                 .build();
     }
 
     // ── ✅ 참여자 목록 (페이징) ──
     @Override
     public Page<AdminEventStatsDto.ParticipantListResponse> getEventParticipants(Long eventId, int page, int size) {
+        EventEntity event = repository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("해당 행사를 찾을 수 없습니다."));
+
+        // ✅ 본인 행사인지 확인
+        checkHost(event);
+
         Pageable pageable = PageRequest.of(page, size);
         return repository.findParticipantsByEventId(eventId, pageable)
                 .map(row -> AdminEventStatsDto.ParticipantListResponse.builder()
@@ -202,5 +213,20 @@ public class AdminEventStatsServiceImpl implements AdminEventStatsService {
 
     private String emptyToNull(String s) {
         return (s == null || s.isBlank()) ? null : s;
+    }
+
+    // ✅ 본인 행사 여부 확인 (ADMIN은 모든 행사 조회 가능)
+    private void checkHost(EventEntity event) {
+        String currentUserId = SecurityContextHolder.getContext()
+                .getAuthentication().getName(); // JWT subject = userId (숫자)
+
+        boolean isAdmin = SecurityContextHolder.getContext()
+                .getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        Long hostId = event.getHost().getUserId(); // ✅ UserEntity.userId
+        if (!isAdmin && !currentUserId.equals(String.valueOf(hostId))) {
+            throw new AccessDeniedException("본인 행사만 조회할 수 있습니다.");
+        }
     }
 }

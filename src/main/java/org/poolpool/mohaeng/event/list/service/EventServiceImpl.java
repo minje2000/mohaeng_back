@@ -51,7 +51,7 @@ public class EventServiceImpl implements EventService {
             throw new IllegalArgumentException("삭제된 행사입니다.");
         }
 
-        if (shouldIncreaseView) {
+        if (shouldIncreaseView && canIncreaseView(event)) {
             Integer currentViews = (event.getViews() == null) ? 0 : event.getViews();
             event.setViews(currentViews + 1);
         }
@@ -234,5 +234,11 @@ public class EventServiceImpl implements EventService {
                 || "report_deleted".equals(lower)
                 || lower.contains("deleted")
                 || "행사삭제".equals(status);
+    }
+
+    private boolean canIncreaseView(EventEntity event) {
+        String moderationStatus = event.getModerationStatus();
+        if (moderationStatus == null) return true;
+        return !("승인대기".equals(moderationStatus) || "반려".equals(moderationStatus));
     }
 }
