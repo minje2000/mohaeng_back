@@ -8,7 +8,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 import java.time.Duration;
 
@@ -38,6 +41,26 @@ public class S3FileController {
     @GetMapping({"/upload_files/photo/**", "/upload_files/profile/**"})
     public ResponseEntity<?> photo(HttpServletRequest request) {
         return serve(request, "photo");
+    }
+
+
+    @GetMapping("/api/files/presigned-download-url")
+    public ResponseEntity<?> presignedDownloadUrl(
+            @RequestParam("dir") String dir,
+            @RequestParam("value") String value,
+            @RequestParam(value = "filename", required = false) String filename
+    ) {
+        String normalizedDir = normalizeDir(dir);
+        if (!StringUtils.hasText(normalizedDir)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "dir 값이 올바르지 않습니다."));
+        }
+
+        String url = s3StorageService.createPresignedDownloadUrl(normalizedDir, value, filename);
+        if (!StringUtils.hasText(url)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(Map.of("url", url));
     }
 
     private ResponseEntity<?> serve(HttpServletRequest request, String s3Dir) {
@@ -84,5 +107,20 @@ public class S3FileController {
         } catch (Exception e) {
             return MediaType.APPLICATION_OCTET_STREAM;
         }
+    }
+
+
+    private String normalizeDir(String dir) {
+        if (!StringUtils.hasText(dir)) {
+            return null;
+        }
+
+        return switch (dir.trim()) {
+            case "event" -> "event";
+            case "hbooth", "host-booth" -> "host-booth";
+            case "pbooth", "participant-booth" -> "participant-booth";
+            case "profile", "photo" -> "photo";
+            default -> null;
+        };
     }
 }
