@@ -66,6 +66,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
 
+        String uri = request.getRequestURI();
+        boolean allowAnonymousAiChat = HttpMethod.POST.matches(request.getMethod()) && "/api/ai/chat".equals(uri);
         String auth = request.getHeader("Authorization");
 
         // 토큰이 없으면 그냥 통과 → SecurityConfig에서 authenticated()면 401 처리됨
@@ -77,14 +79,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = auth.substring("Bearer ".length()).trim();
 
         if (!jwt.validate(token)) {
+            if (allowAnonymousAiChat) {
+                chain.doFilter(request, response);
+                return;
+            }
             throw AuthException.unauthorized("INVALID_TOKEN", "유효하지 않은 토큰입니다.");
         }
         if (jwt.isExpired(token)) {
+            if (allowAnonymousAiChat) {
+                chain.doFilter(request, response);
+                return;
+            }
             throw new TokenExpiredException("TOKEN_EXPIRED", "AccessToken이 만료되었습니다.");
         }
 
         // AccessToken만 허용 (RefreshToken으로 API 호출 차단)
         if (!JwtClaims.ACCESS.equals(jwt.getType(token))) {
+            if (allowAnonymousAiChat) {
+                chain.doFilter(request, response);
+                return;
+            }
             throw AuthException.unauthorized("TOKEN_TYPE_INVALID", "AccessToken이 아닙니다.");
         }
 
