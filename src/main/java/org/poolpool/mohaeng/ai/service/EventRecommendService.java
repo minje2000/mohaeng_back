@@ -90,7 +90,7 @@ public class EventRecommendService {
         List<Long> historyIds = new ArrayList<>(seen);
 
         if (historyIds.isEmpty()) {
-            return eventRepository.findTop6ByEventStatusNotInAndModerationStatusOrderByViewsDesc(EXCLUDED_STATUSES, "승인");
+            return eventRepository.findTop6ByEventStatusNotInOrderByViewsDesc(EXCLUDED_STATUSES);
         }
 
         List<EventEntity> historyEvents = eventRepository.findAllById(historyIds);
@@ -109,14 +109,13 @@ public class EventRecommendService {
 
         Set<Long> historyIdSet = new HashSet<>(historyIds);
         List<EventEntity> allEvents = eventRepository.findByEventStatusNotIn(EXCLUDED_STATUSES)
-        		.stream()
-        	    .filter(e -> !historyIdSet.contains(e.getEventId()))
-        	    .filter(e -> e.getEmbedding() != null)
-        	    .filter(e -> "승인".equals(e.getModerationStatus()))  // ← 추가
-        	    .collect(Collectors.toList());
+            .stream()
+            .filter(e -> !historyIdSet.contains(e.getEventId()))
+            .filter(e -> e.getEmbedding() != null)
+            .collect(Collectors.toList());
 
         if (allEvents.isEmpty()) {
-            return eventRepository.findTop6ByEventStatusNotInAndModerationStatusOrderByViewsDesc(EXCLUDED_STATUSES, "승인");
+            return eventRepository.findTop6ByEventStatusNotInOrderByViewsDesc(EXCLUDED_STATUSES);
         }
 
         List<EventEmbedding> eventPayload = allEvents.stream()
@@ -142,11 +141,11 @@ public class EventRecommendService {
             System.out.println("FastAPI 응답 recommendedIds: " + recommendedIds);
         } catch (Exception e) {
             System.out.println("FastAPI 호출 실패: " + e.getMessage());
-            return eventRepository.findTop6ByEventStatusNotInAndModerationStatusOrderByViewsDesc(EXCLUDED_STATUSES, "승인");
+            return eventRepository.findTop6ByEventStatusNotInOrderByViewsDesc(EXCLUDED_STATUSES);
         }
 
         if (recommendedIds == null || recommendedIds.isEmpty()) {
-            return eventRepository.findTop6ByEventStatusNotInAndModerationStatusOrderByViewsDesc(EXCLUDED_STATUSES, "승인");
+            return eventRepository.findTop6ByEventStatusNotInOrderByViewsDesc(EXCLUDED_STATUSES);
         }
 
         Map<Long, EventEntity> eventMap = allEvents.stream()
@@ -160,7 +159,7 @@ public class EventRecommendService {
 
     // 비로그인 추천 → 조회수 순
     public List<EventEntity> recommendGuest() {
-        return eventRepository.findTop6ByEventStatusNotInAndModerationStatusOrderByViewsDesc(EXCLUDED_STATUSES, "승인");
+        return eventRepository.findTop6ByEventStatusNotInOrderByViewsDesc(EXCLUDED_STATUSES);
     }
 
     // AI 태그 추천

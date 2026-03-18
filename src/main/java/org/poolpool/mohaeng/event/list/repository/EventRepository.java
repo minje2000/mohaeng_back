@@ -150,8 +150,6 @@ public interface EventRepository extends JpaRepository<EventEntity, Long> {
     	        @Param("regionMax") Long regionMax);
 
     List<EventEntity> findTop6ByEventStatusNotInOrderByViewsDesc(List<String> statuses);
-    
-    List<EventEntity> findTop6ByEventStatusNotInAndModerationStatusOrderByViewsDesc(List<String> statuses, String moderationStatus);
 
     @Query("SELECT e FROM EventEntity e WHERE e.eventStatus NOT IN ('DELETED', 'report_deleted', 'REPORT_DELETED', '행사삭제')")
     List<EventEntity> findAllForScheduler();
