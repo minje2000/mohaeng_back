@@ -13,11 +13,17 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.UUID;
 
 @Service
@@ -25,6 +31,7 @@ import java.util.UUID;
 public class S3StorageService {
 
     private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
 
     @Value("${aws.s3.bucket}")
     private String bucket;
@@ -115,6 +122,43 @@ public class S3StorageService {
             return null;
         }
         return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + key;
+    }
+
+
+    public String createPresignedDownloadUrl(String dir, String storedValue, String downloadFileName) {
+        String key = resolveKey(dir, storedValue);
+        if (key == null || key.isBlank() || !exists(key)) {
+            return null;
+        }
+
+        String disposition = buildAttachmentDisposition(downloadFileName);
+
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .responseContentDisposition(disposition)
+                .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(10))
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(presignRequest);
+        return presigned.url().toString();
+    }
+
+    private String buildAttachmentDisposition(String downloadFileName) {
+        String fallback = (downloadFileName == null || downloadFileName.isBlank()) ? "download" : downloadFileName.trim();
+        String asciiFallback = fallback.replaceAll("[^\\x20-\\x7E]", "_").replace("\"", "");
+        if (asciiFallback.isBlank()) {
+            asciiFallback = "download";
+        }
+
+        String encoded = URLEncoder.encode(fallback, StandardCharsets.UTF_8)
+                .replace("+", "%20");
+
+        return "attachment; filename=\"" + asciiFallback + "\"; filename*=UTF-8''" + encoded;
     }
 
     public void delete(String key) {

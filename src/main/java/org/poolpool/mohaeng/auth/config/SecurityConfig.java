@@ -19,6 +19,7 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -93,6 +94,7 @@ public class SecurityConfig {
         	.cors(Customizer.withDefaults())
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
             .authorizeHttpRequests(auth -> auth
                 // React static + SPA entry (절대 "/**" permitAll 금지)
@@ -106,12 +108,18 @@ public class SecurityConfig {
 //                        "/error"
 //                ).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                
+
+                // AI endpoints (순서 중요: EndpointPolicy 보다 먼저 명시)
+                .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/ai/admin-contacts").hasAnyRole("USER", "ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/ai/status/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/ai/admin/**").hasRole("ADMIN")
+
                 .requestMatchers(HttpMethod.GET, "/api/mypage/eventstats/**").hasAnyRole("USER", "ADMIN")
 
                 // auth endpoints
                 .requestMatchers("/auth/**").permitAll()
-                
+
                 // 업로드 파일 접근 권한
                 .requestMatchers("/upload_files/**").permitAll()
 

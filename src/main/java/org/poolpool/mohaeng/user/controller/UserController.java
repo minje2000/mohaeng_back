@@ -228,10 +228,10 @@ public class UserController {
 
 	        if(status == 2){
 	            return ResponseEntity.status(400)
-	                    .body(ApiResponse.fail("휴업 사업자로 가입이 불가합니다.", null));
+	                    .body(ApiResponse.fail("휴업한 사업자로 가입이 불가합니다.", null));
 	        }else if(status == 3){
 	            return ResponseEntity.status(400)
-	                    .body(ApiResponse.fail("폐업 사업자입니다.", null));
+	                    .body(ApiResponse.fail("폐업한 사업자로 가입이 불가합니다.", null));
 	        }else if(status == -99){
 	        	return ResponseEntity.status(401)
 	        			.body(ApiResponse.fail("존재하지 않는 사업자 등록번호입니다.", result));

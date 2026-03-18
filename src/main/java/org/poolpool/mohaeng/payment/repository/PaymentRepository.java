@@ -35,4 +35,8 @@ public interface PaymentRepository extends JpaRepository<PaymentEntity, Long> {
            "WHERE p.eventId = :eventId AND p.payType = 'BOOTH' " +
            "AND p.paymentStatus IN ('APPROVED', 'PARTIAL_CANCEL')")
     Long sumApprovedBoothRevenue(@Param("eventId") Long eventId);
+    java.util.List<PaymentEntity> findTop10ByUserIdOrderByPaymentIdDesc(Long userId);
+
+    java.util.List<PaymentEntity> findTop10ByUserIdAndPaymentStatusInOrderByPaymentIdDesc(Long userId, java.util.List<String> paymentStatuses);
+
 }

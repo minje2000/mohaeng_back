@@ -13,7 +13,10 @@ import lombok.Setter;
 public class AiChatResponse {
     private String answer;
     private String intent;
+    private String routeType;
     private String sessionId;
     private List<AiChatCardDto> cards = new ArrayList<>();
     private List<AiChatSourceDto> sources = new ArrayList<>();
+    private List<String> recommendationReasons = new ArrayList<>();
+    private List<AiChatNextActionDto> nextActions = new ArrayList<>();
 }

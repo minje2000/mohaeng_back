@@ -20,9 +20,7 @@ public final class EndpointPolicy {
             "/api/user/renewPwd",	//비밀번호 찾기
             "/api/user/verifyBiz",	// 사업자 등록증 조회
             "/api/sms/**",			//문자 인증
-            "/api/nts/**",			//사업자 등록번호 조회
-            "/api/ai/chat",
-            "/api/ai/admin-contacts"
+            "/api/nts/**"			//사업자 등록번호 조회
     };
 
     //관리자(ADMIN)만 가능
