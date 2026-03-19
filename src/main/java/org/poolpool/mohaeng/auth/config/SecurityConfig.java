@@ -110,7 +110,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                 // AI endpoints (순서 중요: EndpointPolicy 보다 먼저 명시)
-                .requestMatchers(HttpMethod.POST, "/api/ai/chat").hasAnyRole("USER", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/ai/admin-contacts").hasAnyRole("USER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/ai/status/**").hasAnyRole("USER", "ADMIN")
                 .requestMatchers("/api/ai/admin/**").hasRole("ADMIN")
