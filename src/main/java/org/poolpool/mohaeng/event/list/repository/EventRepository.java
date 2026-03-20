@@ -36,7 +36,8 @@ public interface EventRepository extends JpaRepository<EventEntity, Long> {
         "  (:eventStatus IS NULL OR e.event_status = :eventStatus) " +
         "ORDER BY " +
         "  CASE WHEN e.start_date >= :today THEN 0 ELSE 1 END ASC, " +
-        "  ABS(DATEDIFF(e.start_date, :today)) ASC",
+        "  ABS(DATEDIFF(e.start_date, :today)) ASC, " +
+        "  e.event_id ASC",
         countQuery =
         "SELECT COUNT(*) FROM event e " +
         "LEFT JOIN event_region r ON e.region_id = r.region_id " +
@@ -83,7 +84,8 @@ public interface EventRepository extends JpaRepository<EventEntity, Long> {
         "  CONCAT(',', e.topic_ids, ',') LIKE CONCAT('%,', :topicId, ',%') " +
         "ORDER BY " +
         "  CASE WHEN e.start_date >= :today THEN 0 ELSE 1 END ASC, " +
-        "  ABS(DATEDIFF(e.start_date, :today)) ASC",
+        "  ABS(DATEDIFF(e.start_date, :today)) ASC, " +
+        "  e.event_id ASC",
         countQuery =
         "SELECT COUNT(*) FROM event e " +
         "LEFT JOIN event_region r ON e.region_id = r.region_id " +
