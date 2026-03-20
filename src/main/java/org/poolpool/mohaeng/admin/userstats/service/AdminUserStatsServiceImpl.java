@@ -25,24 +25,46 @@ public class AdminUserStatsServiceImpl implements AdminUserStatsService {
 
     @Override
     public UserStatsDto getDashboardStats() {
-        return adminUserStatsRepository.findUserDashboardStats(LocalDate.now());
+        UserStatsDto stats = adminUserStatsRepository.findUserDashboardStats(LocalDate.now());
+        
+        Long totalWithdrawal   = adminUserStatsRepository.countTotalWithdrawal();
+        Long dormantWithdrawal = adminUserStatsRepository.countDormantWithdrawal();
+        Long directWithdrawal  = (totalWithdrawal != null ? totalWithdrawal : 0L)
+                               - (dormantWithdrawal != null ? dormantWithdrawal : 0L);
+
+        stats.setTotalWithdrawalCount(totalWithdrawal != null ? totalWithdrawal : 0L);
+        stats.setDormantWithdrawalCount(dormantWithdrawal != null ? dormantWithdrawal : 0L);
+        stats.setDirectWithdrawalCount(directWithdrawal);
+        return stats;
     }
 
     @Override
     public List<UserStatsDto> findMonthlyUsers() {
         LocalDate now = LocalDate.now();
         LocalDateTime sixMonthsAgo = now.minusMonths(5).withDayOfMonth(1).atStartOfDay();
-        List<UserStatsDto> monthlyUsers = adminUserStatsRepository.findMonthlyUsers(sixMonthsAgo);
 
-        Map<String, Long> resultMap = monthlyUsers.stream()
-                .collect(Collectors.toMap(UserStatsDto::getPeriod, UserStatsDto::getUserCount));
+        Map<String, Long> newMap = adminUserStatsRepository.findMonthlyUsers(sixMonthsAgo)
+                .stream().collect(Collectors.toMap(UserStatsDto::getPeriod, UserStatsDto::getUserCount));
+
+        Map<String, Long> withdrawalMap = adminUserStatsRepository.findMonthlyWithdrawals(sixMonthsAgo)
+                .stream().collect(Collectors.toMap(UserStatsDto::getPeriod, UserStatsDto::getUserCount));
+
+        // ← 6개월 이전 가입자 수로 초기값 설정
+        long cumulative = adminUserStatsRepository.countUsersBeforeDate(sixMonthsAgo);
 
         List<UserStatsDto> acc = new ArrayList<>();
-        long cumulative = 0;
         for (int i = 5; i >= 0; i--) {
             String period = now.minusMonths(i).format(DateTimeFormatter.ofPattern("yyyy-MM"));
-            cumulative += resultMap.getOrDefault(period, 0L);
-            acc.add(new UserStatsDto(period, cumulative));
+            long newCount        = newMap.getOrDefault(period, 0L);
+            long withdrawalCount = withdrawalMap.getOrDefault(period, 0L);
+            cumulative += newCount - withdrawalCount;
+            
+            log.info("period={}, new={}, withdrawal={}, cumulative={}", period, newCount, withdrawalCount, cumulative);
+
+            UserStatsDto dto = new UserStatsDto(period, cumulative);
+            dto.setNewUserCount(newCount);
+            dto.setMonthlyWithdrawalCount(withdrawalCount);
+            acc.add(dto);
         }
         return acc;
     }
