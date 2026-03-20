@@ -14,6 +14,13 @@ public class UserStatsDto {
 	private Long companyUserCount;	//기업 회원 수
 	private Long totalDormantCount;	//휴면계정 수
 	
+	private Long newUserCount;
+	private Long monthlyWithdrawalCount;
+	
+	private Long totalWithdrawalCount;
+	private Long dormantWithdrawalCount;
+	private Long directWithdrawalCount;
+	
     private String period;	//기간
     //최근 6개월 월별 누적 회원 수 조회용
     private Long userCount;	//회원 수

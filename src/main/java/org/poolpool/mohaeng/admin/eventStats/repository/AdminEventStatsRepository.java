@@ -16,6 +16,7 @@ public interface AdminEventStatsRepository extends JpaRepository<EventEntity, Lo
     // ── 1. 필터링된 행사 목록 (페이징) ──
     @Query("SELECT e FROM EventEntity e WHERE " +
            "e.eventStatus NOT IN ('DELETED', 'REPORT_DELETED', 'report_deleted') AND " +
+           "e.moderationStatus NOT IN ('반려', '승인대기') AND " + 
            "(:keyword IS NULL OR e.title LIKE CONCAT('%',:keyword,'%') OR e.simpleExplain LIKE CONCAT('%',:keyword,'%')) AND " +
            "(:categoryId IS NULL OR e.category.categoryId = :categoryId) AND " +
            "(:status IS NULL OR e.eventStatus = :status) AND " +

@@ -22,7 +22,6 @@ public interface EventRepository extends JpaRepository<EventEntity, Long> {
     // 공개 행사 검색 - 승인된 행사만 노출
     @Query(value =
         "SELECT e.* FROM event e " +
-        "LEFT JOIN event_category c ON e.category_id = c.category_id " +
         "LEFT JOIN event_region r ON e.region_id = r.region_id " +
         "WHERE " +
         "  (:keyword IS NULL OR e.title LIKE CONCAT('%', :keyword, '%') OR e.simple_explain LIKE CONCAT('%', :keyword, '%')) AND " +
@@ -37,7 +36,8 @@ public interface EventRepository extends JpaRepository<EventEntity, Long> {
         "  (:eventStatus IS NULL OR e.event_status = :eventStatus) " +
         "ORDER BY " +
         "  CASE WHEN e.start_date >= :today THEN 0 ELSE 1 END ASC, " +
-        "  ABS(DATEDIFF(e.start_date, :today)) ASC",
+        "  ABS(DATEDIFF(e.start_date, :today)) ASC, " +
+        "  e.event_id ASC",
         countQuery =
         "SELECT COUNT(*) FROM event e " +
         "LEFT JOIN event_region r ON e.region_id = r.region_id " +
@@ -84,7 +84,8 @@ public interface EventRepository extends JpaRepository<EventEntity, Long> {
         "  CONCAT(',', e.topic_ids, ',') LIKE CONCAT('%,', :topicId, ',%') " +
         "ORDER BY " +
         "  CASE WHEN e.start_date >= :today THEN 0 ELSE 1 END ASC, " +
-        "  ABS(DATEDIFF(e.start_date, :today)) ASC",
+        "  ABS(DATEDIFF(e.start_date, :today)) ASC, " +
+        "  e.event_id ASC",
         countQuery =
         "SELECT COUNT(*) FROM event e " +
         "LEFT JOIN event_region r ON e.region_id = r.region_id " +
