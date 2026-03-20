@@ -13,31 +13,32 @@ import org.springframework.data.repository.query.Param;
 public interface AdminUserStatsRepository extends JpaRepository<UserEntity, Long> {
 
     // 오늘 방문자 수, 개인 회원 수, 기업 회원 수, 휴면계정 수
-    @Query("""
-        select new org.poolpool.mohaeng.admin.userstats.dto.UserStatsDto(
-            sum(case when u.lastLoginAt = :today then 1 else 0 end),
-            sum(case when u.userStatus = 'DORMANT' then 1 else 0 end),
-            sum(case when u.userType = 'PERSONAL' and u.userRole = 'USER' then 1 else 0 end),
-            sum(case when u.userType = 'COMPANY' and u.userRole = 'USER' then 1 else 0 end)
-        )
-        from UserEntity u
-        where u.userRole = 'USER'
-        """)
-    UserStatsDto findUserDashboardStats(@Param("today") LocalDate today);
+	@Query("""
+		    select new org.poolpool.mohaeng.admin.userstats.dto.UserStatsDto(
+		        sum(case when u.lastLoginAt = :today then 1 else 0 end),
+		        sum(case when u.userStatus = 'DORMANT' then 1 else 0 end),
+		        sum(case when u.userType = 'PERSONAL' and u.userRole = 'USER' and u.userStatus in ('ACTIVE', 'DORMANT') then 1 else 0 end),
+		        sum(case when u.userType = 'COMPANY' and u.userRole = 'USER' and u.userStatus in ('ACTIVE', 'DORMANT') then 1 else 0 end)
+		    )
+		    from UserEntity u
+		    where u.userRole = 'USER'
+		      and u.userStatus in ('ACTIVE', 'DORMANT')
+		    """)
+		UserStatsDto findUserDashboardStats(@Param("today") LocalDate today);
 
     // 최근 6개월 월별 회원 수
-    @Query("""
-         select new org.poolpool.mohaeng.admin.userstats.dto.UserStatsDto(
-           cast(function('date_format', u.createdAt, '%Y-%m') as string),
-           sum(case when u.userStatus = 'ACTIVE' then 1 else 0 end)
-         )
-         from UserEntity u
-         where u.userRole = 'USER'
-           and u.createdAt >= :startDate
-         group by cast(function('date_format', u.createdAt, '%Y-%m') as string)
-         order by cast(function('date_format', u.createdAt, '%Y-%m') as string)
-        """)
-    List<UserStatsDto> findMonthlyUsers(@Param("startDate") LocalDateTime startDate);
+	@Query("""
+		     select new org.poolpool.mohaeng.admin.userstats.dto.UserStatsDto(
+		       cast(function('date_format', u.createdAt, '%Y-%m') as string),
+		       count(u)
+		     )
+		     from UserEntity u
+		     where u.userRole = 'USER'
+		       and u.createdAt >= :startDate
+		     group by cast(function('date_format', u.createdAt, '%Y-%m') as string)
+		     order by cast(function('date_format', u.createdAt, '%Y-%m') as string)
+		    """)
+		List<UserStatsDto> findMonthlyUsers(@Param("startDate") LocalDateTime startDate);
 
     // 최근 6개월 휴면계정 안내 발송 수 (월별)
     @Query("""
@@ -98,4 +99,35 @@ public interface AdminUserStatsRepository extends JpaRepository<UserEntity, Long
         order by cast(function('date_format', d.withdrawnAt, '%Y-%m-%d') as string)
         """)
     List<UserStatsDto> findDailyDormantWithdrawn(@Param("yearMonth") String yearMonth);
+    
+    // 전체 탈퇴자 수
+    @Query("select count(u) from UserEntity u where u.userRole = 'USER' and u.userStatus = 'WITHDRAWAL'")
+    Long countTotalWithdrawal();
+
+    // 휴면 탈퇴자 수
+    @Query("select count(d) from DormantUserEntity d where d.withdrawnAt is not null")
+    Long countDormantWithdrawal();
+    
+    @Query("""
+    	    select new org.poolpool.mohaeng.admin.userstats.dto.UserStatsDto(
+    	        cast(function('date_format', u.updatedAt, '%Y-%m') as string),
+    	        count(u)
+    	    )
+    	    from UserEntity u
+    	    where u.userRole = 'USER'
+    	      and u.userStatus = 'WITHDRAWAL'
+    	      and u.updatedAt >= :startDate
+    	    group by cast(function('date_format', u.updatedAt, '%Y-%m') as string)
+    	    order by cast(function('date_format', u.updatedAt, '%Y-%m') as string)
+    	    """)
+    	List<UserStatsDto> findMonthlyWithdrawals(@Param("startDate") LocalDateTime startDate);
+    
+    @Query("""
+    	    select count(u) from UserEntity u
+    	    where u.userRole = 'USER'
+    	      and u.createdAt < :startDate
+    	    """)
+    	Long countUsersBeforeDate(@Param("startDate") LocalDateTime startDate);
 }
+
+
