@@ -22,7 +22,6 @@ public interface EventRepository extends JpaRepository<EventEntity, Long> {
     // 공개 행사 검색 - 승인된 행사만 노출
     @Query(value =
         "SELECT e.* FROM event e " +
-        "LEFT JOIN event_category c ON e.category_id = c.category_id " +
         "LEFT JOIN event_region r ON e.region_id = r.region_id " +
         "WHERE " +
         "  (:keyword IS NULL OR e.title LIKE CONCAT('%', :keyword, '%') OR e.simple_explain LIKE CONCAT('%', :keyword, '%')) AND " +
