@@ -29,7 +29,6 @@ public class RefreshTokenService {
         entity.setTokenValue(tokenValue);
         entity.setIssuedAt(issuedAt);
         entity.setExpiresAt(expiresAt);
-        entity.setRevoked(false);
 
         return repo.save(entity);
     }
