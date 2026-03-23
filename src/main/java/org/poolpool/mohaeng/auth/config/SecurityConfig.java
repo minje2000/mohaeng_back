@@ -117,6 +117,9 @@ public class SecurityConfig {
 
                 .requestMatchers(HttpMethod.GET, "/api/mypage/eventstats/**").hasAnyRole("USER", "ADMIN")
 
+                // health check
+                .requestMatchers("/actuator/health").permitAll()
+                
                 // auth endpoints
                 .requestMatchers("/auth/**").permitAll()
 
