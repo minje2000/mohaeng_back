@@ -18,6 +18,7 @@ import org.poolpool.mohaeng.notification.repository.NotificationRepository;
 import org.poolpool.mohaeng.notification.repository.NotificationTypeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -32,25 +33,35 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationTypeRepository notificationTypeRepository;
-
     private final EventRepository eventRepository;
     private final AdminReportRepository reportRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     private final Logger log = LoggerFactory.getLogger(NotificationServiceImpl.class);
 
+    private static final String DEFAULT_STATUS = "미발송";
     private static final int STATUS_MAX_LEN = 50;
 
-    private String fitStatus(String v) {
-        String s = (v == null) ? "" : v.trim();
-        if (s.isEmpty()) s = "미발송";
-        if (s.length() <= STATUS_MAX_LEN) return s;
-        return s.substring(0, STATUS_MAX_LEN);
+    private void publishChanged(long userId) {
+        eventPublisher.publishEvent(new NotificationChangedEvent(userId));
+    }
+
+    private String normalizeStatus1(String value) {
+        String v = (value == null || value.isBlank()) ? DEFAULT_STATUS : value.trim();
+        return v.length() > STATUS_MAX_LEN ? v.substring(0, STATUS_MAX_LEN) : v;
+    }
+
+    private String normalizeStatus2(String value) {
+        if (value == null || value.isBlank()) return null;
+        String v = value.trim();
+        return v.length() > STATUS_MAX_LEN ? v.substring(0, STATUS_MAX_LEN) : v;
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<NotificationItemDto> getList(long userId, Pageable pageable) {
         Page<NotificationEntity> page = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+
         if (page.isEmpty()) {
             return new PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0L, 0);
         }
@@ -110,13 +121,19 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional
     public void read(long userId, long notificationId) {
         int affected = notificationRepository.deleteByNotificationIdAndUserId(notificationId, userId);
-        if (affected == 0) throw new IllegalArgumentException("알림이 없거나 본인 알림이 아닙니다.");
+        if (affected == 0) {
+            throw new IllegalArgumentException("알림이 없거나 본인 알림이 아닙니다.");
+        }
+        publishChanged(userId);
     }
 
     @Override
     @Transactional
     public void readAll(long userId) {
-        notificationRepository.deleteByUserId(userId);
+        int deleted = notificationRepository.deleteByUserId(userId);
+        if (deleted > 0) {
+            publishChanged(userId);
+        }
     }
 
     @Override
@@ -131,13 +148,15 @@ public class NotificationServiceImpl implements NotificationService {
                 .notiTypeId(notiTypeId)
                 .eventId(eventId)
                 .reportId(reportId)
-                .status1(fitStatus("미발송"))
-                .status2(fitStatus("미발송"))
+                .status1(DEFAULT_STATUS)
+                .status2(null)
                 .build();
 
         long id = notificationRepository.save(n).getNotificationId();
         log.info("Notification created id={} userId={} typeId={} eventId={} reportId={}",
                 id, userId, notiTypeId, eventId, reportId);
+
+        publishChanged(userId);
         return id;
     }
 
@@ -153,17 +172,18 @@ public class NotificationServiceImpl implements NotificationService {
                 .notiTypeId(notiTypeId)
                 .eventId(eventId)
                 .reportId(reportId)
-                .status1(fitStatus(status1))
-                .status2(fitStatus(status2))
+                .status1(normalizeStatus1(status1))
+                .status2(normalizeStatus2(status2))
                 .build();
 
         long id = notificationRepository.save(n).getNotificationId();
-        log.info("Notification createWithStatus id={} userId={} typeId={} eventId={} reportId={}",
-                id, userId, notiTypeId, eventId, reportId);
+        log.info("Notification createWithStatus id={} userId={} typeId={} eventId={} reportId={} status1={} status2={}",
+                id, userId, notiTypeId, eventId, reportId, n.getStatus1(), n.getStatus2());
+
+        publishChanged(userId);
         return id;
     }
 
-    // 프론트 ReportCategorySelect와 동일
     private String reasonCategoryLabel(String code) {
         if (code == null) return "";
         String v = code.trim();

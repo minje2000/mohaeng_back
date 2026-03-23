@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 public class EventStatusScheduler {
     private final EventRepository eventRepository;
 
-    @Scheduled(cron = "0 0 0 * * *")
+    @Scheduled(cron = "0 * * * * *")
     @Transactional
     public void updateAllEventStatuses() {
         // log.info("=== 행사 상태 자동 업데이트 스케줄러 시작 ===");
