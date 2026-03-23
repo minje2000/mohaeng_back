@@ -17,24 +17,22 @@ import org.poolpool.mohaeng.event.participation.entity.EventParticipationEntity;
 import org.poolpool.mohaeng.event.participation.entity.ParticipationBoothEntity;
 import org.poolpool.mohaeng.event.participation.entity.ParticipationBoothFacilityEntity;
 import org.poolpool.mohaeng.event.participation.repository.EventParticipationRepository;
+import org.poolpool.mohaeng.notification.service.NotificationService;
+import org.poolpool.mohaeng.notification.type.NotiTypeId;
 import org.poolpool.mohaeng.payment.entity.PaymentEntity;
 import org.poolpool.mohaeng.payment.repository.PaymentRepository;
 import org.poolpool.mohaeng.payment.service.PaymentService;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 행사 참여/취소 및 부스 신청 처리(취소/승인/반려) 서비스.
- *
- * ⚠️ 참고
- * - 부스 '신청 제출'은 현재 EventParticipationController에서 직접 엔티티를 저장하고 있어
- *   이 서비스의 submitBoothParticipation()은 "미사용/호환용"으로 남겨둡니다.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -46,10 +44,8 @@ public class EventParticipationServiceImpl implements EventParticipationService 
     private final PaymentService paymentService;
     private final EventRepository eventRepository;
     private final HostBoothRepository hostBoothRepository;
-
-    // ──────────────────────────────────────
-    //  공통: 로그인 사용자 ID
-    // ──────────────────────────────────────
+    private final NotificationService notificationService;
+    private final PlatformTransactionManager transactionManager;
 
     private Long getCurrentUserId() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -67,26 +63,23 @@ public class EventParticipationServiceImpl implements EventParticipationService 
         throw new IllegalStateException("인증 정보를 찾을 수 없습니다. principal=" + principal);
     }
 
-    // ──────────────────────────────────────
-    //  마이페이지: 내 행사 참여 목록
-    // ──────────────────────────────────────
-
     @Override
     @Transactional(readOnly = true)
     public List<EventParticipationDto> getParticipationList(Long userId) {
         List<EventParticipationEntity> list = participationRepository.findParticipationsByUserId(userId);
 
         return list.stream()
-                .filter(p -> !"참여삭제".equals(p.getPctStatus()))  // 참여삭제는 제외
+                .filter(p -> !"참여삭제".equals(p.getPctStatus()))
                 .map(p -> {
                     EventEntity event = null;
-                    try { event = eventRepository.findById(p.getEventId()).orElse(null); }
-                    catch (Exception ignored) {}
+                    try {
+                        event = eventRepository.findById(p.getEventId()).orElse(null);
+                    } catch (Exception ignored) {}
 
                     Integer payAmount = null;
                     try {
                         payAmount = paymentRepository.findByPctId(p.getPctId())
-                                .map(pay -> pay.getAmountTotal())
+                                .map(PaymentEntity::getAmountTotal)
                                 .orElse(null);
                     } catch (Exception ignored) {}
 
@@ -94,11 +87,6 @@ public class EventParticipationServiceImpl implements EventParticipationService 
                 })
                 .toList();
     }
-
-
-    // ──────────────────────────────────────
-    //  일반 행사 참여
-    // ──────────────────────────────────────
 
     @Override
     public Long submitParticipation(Long userId, Long eventId) {
@@ -140,14 +128,6 @@ public class EventParticipationServiceImpl implements EventParticipationService 
         log.info("[행사 참여 취소] pctId={}, refundRate={}%, paymentExists={}", pctId, refundRate, paymentOpt.isPresent());
     }
 
-    // ──────────────────────────────────────
-    //  부스 신청 (취소/승인/반려)
-    // ──────────────────────────────────────
-
-    /**
-     * 현재 프로젝트에서는 부스 신청 저장을 Controller가 직접 수행 중이라
-     * 서비스 시그니처 호환을 위해 예외로 막아둡니다.
-     */
     @Override
     public Long submitBoothParticipation(Long userId, Long eventId, Object dto) {
         throw new UnsupportedOperationException(
@@ -159,7 +139,6 @@ public class EventParticipationServiceImpl implements EventParticipationService 
         ParticipationBoothEntity booth = participationRepository.findBoothById(pctBoothId)
                 .orElseThrow(() -> new IllegalArgumentException("부스 신청 정보를 찾을 수 없습니다."));
 
-        // 승인/반려는 주최자 처리로 간주 (취소 방지)
         if (Set.of("승인", "반려").contains(booth.getStatus())) {
             throw new IllegalStateException("승인 또는 반려된 부스는 취소할 수 없습니다.");
         }
@@ -186,10 +165,20 @@ public class EventParticipationServiceImpl implements EventParticipationService 
             throw new IllegalStateException("신청/결제 상태에서만 승인 가능합니다.");
         }
 
+        Long eventId = getEventIdFromHostBooth(booth.getHostBoothId());
+
         booth.setStatus("승인");
         booth.setApprovedDate(LocalDateTime.now());
         participationRepository.saveBooth(booth);
-        log.info("[부스 승인] pctBoothId={}", pctBoothId);
+
+        notificationService.create(
+                booth.getUserId(),
+                NotiTypeId.BOOTH_ACCEPT,
+                eventId,
+                null
+        );
+
+        log.info("[부스 승인] pctBoothId={}, eventId={}, userId={}", pctBoothId, eventId, booth.getUserId());
     }
 
     @Override
@@ -201,19 +190,26 @@ public class EventParticipationServiceImpl implements EventParticipationService 
             throw new IllegalStateException("신청/결제 상태에서만 반려 가능합니다.");
         }
 
-        // 반려는 전액 환불 + 재고 복원
+        Long eventId = getEventIdFromHostBooth(booth.getHostBoothId());
+
         Optional<PaymentEntity> paymentOpt = paymentRepository.findByPctBoothId(pctBoothId);
         refundIfPaid(paymentOpt, 100, "주최자 반려");
+
         restoreInventory(pctBoothId, booth.getHostBoothId(), booth.getBoothCount());
 
         booth.setStatus("반려");
         participationRepository.saveBooth(booth);
-        log.info("[부스 반려] pctBoothId={} → 100% 환불 + 재고 복원", pctBoothId);
-    }
 
-    // ──────────────────────────────────────
-    //  중복 신청 여부 확인
-    // ──────────────────────────────────────
+        notificationService.create(
+                booth.getUserId(),
+                NotiTypeId.BOOTH_REJECT,
+                eventId,
+                null
+        );
+
+        log.info("[부스 반려] pctBoothId={}, eventId={}, userId={} → 100% 환불 + 재고 복원",
+                pctBoothId, eventId, booth.getUserId());
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -229,10 +225,6 @@ public class EventParticipationServiceImpl implements EventParticipationService 
         return participationRepository.existsActiveBoothParticipation(userId, eventId);
     }
 
-    // ──────────────────────────────────────
-    //  내부 유틸
-    // ──────────────────────────────────────
-
     private EventEntity findEvent(Long eventId) {
         return eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("행사를 찾을 수 없습니다. eventId=" + eventId));
@@ -244,20 +236,13 @@ public class EventParticipationServiceImpl implements EventParticipationService 
         return hb.getEventId();
     }
 
-    /**
-     * 환불률 계산 (시작일 기준 D-day)
-     * - D-7 이상: 100%
-     * - D-3 이상: 50%
-     * - D-1 이상: 30%
-     * - 당일/지난 행사: 0%
-     */
     private int calcRefundRate(LocalDate startDate) {
         if (startDate == null) return 0;
         long days = ChronoUnit.DAYS.between(LocalDate.now(), startDate);
         if (days >= 30) return 100;
         if (days >= 15) return 80;
-        if (days >= 7)  return 50;
-        if (days >= 3)  return 30;
+        if (days >= 7) return 50;
+        if (days >= 3) return 30;
         return 0;
     }
 
@@ -266,25 +251,33 @@ public class EventParticipationServiceImpl implements EventParticipationService 
 
         PaymentEntity p = paymentOpt.get();
         if (p.getPaymentKey() == null || p.getPaymentKey().isBlank()) return;
-
-        // 이미 취소 처리된 결제는 중복 환불 방지
         if ("CANCELED".equalsIgnoreCase(p.getPaymentStatus())) return;
-
-        // 승인 결제만 환불 대상으로 처리
         if (!"APPROVED".equalsIgnoreCase(p.getPaymentStatus())) return;
 
         int total = p.getAmountTotal() == null ? 0 : p.getAmountTotal();
         int cancelAmount = (int) Math.floor(total * (refundRate / 100.0));
         if (cancelAmount <= 0) return;
 
-        paymentService.cancelPayment(p.getPaymentKey(), cancelAmount, reason);
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_NOT_SUPPORTED);
+
+        try {
+            template.executeWithoutResult(status -> {
+                paymentService.cancelPayment(p.getPaymentKey(), cancelAmount, reason);
+            });
+        } catch (RuntimeException e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("이미 취소된 결제")) {
+                log.warn("[환불 스킵] 이미 취소된 결제 paymentKey={}", p.getPaymentKey());
+                p.setPaymentStatus("CANCELED");
+                paymentRepository.save(p);
+                return;
+            }
+            throw e;
+        }
     }
 
-    /**
-     * 부스/부대시설 재고 복원
-     */
     private void restoreInventory(Long pctBoothId, Long hostBoothId, Integer boothCount) {
-        // 부대시설 재고 복원
         List<ParticipationBoothFacilityEntity> facilities = participationRepository.findFacilitiesByPctBoothId(pctBoothId);
         for (ParticipationBoothFacilityEntity f : facilities) {
             if (f.getHostBoothFaciId() == null) continue;
@@ -292,7 +285,6 @@ public class EventParticipationServiceImpl implements EventParticipationService 
             participationRepository.increaseFacilityRemainCount(f.getHostBoothFaciId(), cnt);
         }
 
-        // 부스 재고 복원 (boothCount만큼)
         int bc = (boothCount == null || boothCount <= 0) ? 1 : boothCount;
         for (int i = 0; i < bc; i++) {
             participationRepository.increaseBoothRemainCount(hostBoothId);
