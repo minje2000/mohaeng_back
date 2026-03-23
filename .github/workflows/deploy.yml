@@ -66,7 +66,7 @@ jobs:
           ${{ secrets.ECR_REGISTRY }}
 
           # 현재 실행중인 버전 확인
-          CURRENT=$(cat /home/ec2-user/current_color)
+          CURRENT=$(cat /home/ubuntu/current_color)
 
           if [ "$CURRENT" = "blue" ]; then
             NEW="green"
@@ -124,6 +124,6 @@ jobs:
           docker rm $OLD_CONTAINER || true
 
           # 현재 상태 저장
-          echo $NEW > /home/ec2-user/current_color
+          echo $NEW > /home/ubuntu/current_color
 
           echo "Deploy success!"
