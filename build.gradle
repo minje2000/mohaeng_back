@@ -102,6 +102,9 @@ dependencies {
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
 	// pdf -> 이미지 변환
 	implementation 'org.apache.pdfbox:pdfbox:2.0.30'
+	
+	// Health Check
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 
 // sourceSets
