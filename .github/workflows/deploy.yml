@@ -46,13 +46,15 @@ jobs:
         ${{ secrets.ECR_REGISTRY }}/mohaeng-spring:latest
 
     # EC2 서버에 접속해서 배포
-    - name: Deploy to EC2
+    - name: Deploy to EC2 (Blue-Green)
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
+
+          set -e
 
           cd deploy
 
@@ -63,8 +65,65 @@ jobs:
           --password-stdin \
           ${{ secrets.ECR_REGISTRY }}
 
-          # 최신 이미지 가져오기
-          docker compose pull spring
+          # 현재 실행중인 버전 확인
+          CURRENT=$(cat /home/ec2-user/current_color)
 
-          # 컨테이너 재시작
-          docker compose up -d spring --no-deps
+          if [ "$CURRENT" = "blue" ]; then
+            NEW="green"
+            NEW_PORT=8082
+            OLD_CONTAINER="spring-blue"
+            NEW_CONTAINER="spring-green"
+          else
+            NEW="blue"
+            NEW_PORT=8081
+            OLD_CONTAINER="spring-green"
+            NEW_CONTAINER="spring-blue"
+          fi
+
+          echo "Current: $CURRENT → Deploying: $NEW"
+
+          # 최신 이미지 pull
+          docker pull ${{ secrets.ECR_REGISTRY }}/mohaeng-spring:latest
+
+          # 기존 새 컨테이너 제거
+          docker rm -f $NEW_CONTAINER || true
+
+          # 새 컨테이너 실행
+          docker run -d \
+            -p $NEW_PORT:8080 \
+            --name $NEW_CONTAINER \
+            ${{ secrets.ECR_REGISTRY }}/mohaeng-spring:latest
+
+          echo "Health Check..."
+
+          # Health Check (최대 5번 시도)
+          for i in {1..5}
+          do
+            sleep 5
+            if curl -f http://localhost:$NEW_PORT/actuator/health; then
+              echo "Health check success"
+              break
+            fi
+
+            if [ $i -eq 5 ]; then
+              echo "Health check failed"
+              docker logs $NEW_CONTAINER
+              exit 1
+            fi
+          done
+
+          # nginx가 바라보는 서버 변경
+          echo "set \$service_url http://127.0.0.1:$NEW_PORT;" \
+          | sudo tee /etc/nginx/conf.d/service-url.inc
+
+          # nginx reload (무중단)
+          sudo nginx -s reload
+
+          # 이전 컨테이너 종료
+          docker stop $OLD_CONTAINER || true
+          docker rm $OLD_CONTAINER || true
+
+          # 현재 상태 저장
+          echo $NEW > /home/ec2-user/current_color
+
+          echo "Deploy success!"
