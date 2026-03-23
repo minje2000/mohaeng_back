@@ -91,6 +91,7 @@ jobs:
           # 새 컨테이너 실행
           docker run -d \
             -p $NEW_PORT:8080 \
+            --env-file /home/ubuntu/deploy/.env \
             --name $NEW_CONTAINER \
             ${{ secrets.ECR_REGISTRY }}/mohaeng-spring:latest
 
