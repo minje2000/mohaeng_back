@@ -1,4 +1,3 @@
-// src/main/java/org/poolpool/mohaeng/event/participation/controller/EventParticipationController.java
 package org.poolpool.mohaeng.event.participation.controller;
 
 import java.util.List;
@@ -49,11 +48,6 @@ public class EventParticipationController {
     @PersistenceContext
     private EntityManager em;
 
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // 부스 신청 생성
-    // ─────────────────────────────────────────────────────────────────────────
-
     @PostMapping(value = "/submitBoothApply", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Transactional
     public ResponseEntity<?> submitBoothApply(
@@ -76,10 +70,12 @@ public class EventParticipationController {
         PaymentEntity payment = null;
         if (orderId != null && !orderId.isBlank()) {
             payment = paymentRepository.findByPaymentKey(orderId).orElse(null);
-            if (payment == null)
+            if (payment == null) {
                 return ResponseEntity.badRequest().body(Map.of("message", "결제 정보를 찾을 수 없습니다."));
-            if (!"APPROVED".equals(payment.getPaymentStatus()))
+            }
+            if (!"APPROVED".equals(payment.getPaymentStatus())) {
                 return ResponseEntity.badRequest().body(Map.of("message", "결제가 완료되지 않았습니다."));
+            }
         }
 
         ParticipationBoothEntity booth = new ParticipationBoothEntity();
@@ -105,8 +101,14 @@ public class EventParticipationController {
             EventEntity event = eventRepository.findById(eventId).orElse(null);
             Long hostId = (event != null && event.getHost() != null) ? event.getHost().getUserId() : null;
             Long applicantId = booth.getUserId();
+
             if (hostId != null && applicantId != null && !hostId.equals(applicantId)) {
-                notificationService.create(hostId, NotiTypeId.BOOTH_RECEIVER, eventId, null);
+                notificationService.create(
+                        hostId,
+                        NotiTypeId.BOOTH_RECEIVER,
+                        eventId,
+                        null
+                );
             }
         } catch (Exception e) {
             log.error("[BOOTH_NOTI] failed type=8 eventId={} pctBoothId={}", eventId, pctBoothId, e);
@@ -120,12 +122,14 @@ public class EventParticipationController {
         if (dto.getFacilities() != null) {
             for (BoothApplyRequestDto.FacilityItem fi : dto.getFacilities()) {
                 if (fi.getHostBoothFaciId() == null) continue;
+
                 ParticipationBoothFacilityEntity faci = new ParticipationBoothFacilityEntity();
                 faci.setHostBoothFaciId(fi.getHostBoothFaciId());
                 faci.setPctBoothId(pctBoothId);
                 faci.setFaciCount(fi.getFaciCount() != null ? fi.getFaciCount() : 1);
                 faci.setFaciPrice(fi.getFaciPrice() != null ? fi.getFaciPrice() : 0);
                 em.persist(faci);
+
                 em.createQuery(
                     "UPDATE HostFacilityEntity h " +
                     "SET h.remainCount = h.remainCount - :cnt " +
@@ -146,9 +150,11 @@ public class EventParticipationController {
         if (files != null && !files.isEmpty()) {
             EventEntity eventEntity = eventRepository.findById(eventId).orElse(null);
             int sortOrder = 0;
+
             for (MultipartFile file : files) {
                 if (file.isEmpty()) continue;
                 String originalName = file.getOriginalFilename();
+
                 try {
                     String savedName = s3StorageService.upload(file, "participant-booth");
                     FileEntity fileEntity = FileEntity.builder()
@@ -170,10 +176,6 @@ public class EventParticipationController {
         return ResponseEntity.ok(Map.of("pctBoothId", pctBoothId));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 일반 행사 참여 생성
-    // ─────────────────────────────────────────────────────────────────────────
-
     @PostMapping("/submitParticipation")
     @Transactional
     public ResponseEntity<?> submitParticipation(
@@ -188,17 +190,20 @@ public class EventParticipationController {
             for (int retry = 0; retry < 6; retry++) {
                 payment = paymentRepository.findByOrderId(orderId).orElse(null);
                 if (payment != null && "APPROVED".equals(payment.getPaymentStatus())) break;
-                try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ignored) {}
             }
-            if (payment == null)
+            if (payment == null) {
                 return ResponseEntity.badRequest().body(Map.of("message", "결제 정보를 찾을 수 없습니다."));
-            if (!"APPROVED".equals(payment.getPaymentStatus()))
+            }
+            if (!"APPROVED".equals(payment.getPaymentStatus())) {
                 return ResponseEntity.badRequest().body(Map.of("message", "결제가 완료되지 않았습니다. 잠시 후 다시 시도해주세요."));
+            }
         }
 
-        // ✅ 날짜별 정원 체크
         if (formData != null && formData.get("pctDate") != null) {
-            String pctDateStr = String.valueOf(formData.get("pctDate")); // "2026-02-02"
+            String pctDateStr = String.valueOf(formData.get("pctDate"));
             EventEntity event = eventRepository.findById(eventId).orElse(null);
 
             if (event != null && event.getCapacity() != null) {
@@ -227,14 +232,14 @@ public class EventParticipationController {
         pct.setPctStatus(payment != null ? "결제완료" : "참여확정");
 
         if (formData != null) {
-            if (formData.get("pctGender")    != null) pct.setPctGender(String.valueOf(formData.get("pctGender")));
-            if (formData.get("pctAgeGroup")  != null) pct.setPctAgeGroup(String.valueOf(formData.get("pctAgeGroup")));
-            if (formData.get("pctJob")       != null) pct.setPctJob(String.valueOf(formData.get("pctJob")));
-            if (formData.get("pctRoot")      != null) pct.setPctRoot(String.valueOf(formData.get("pctRoot")));
-            if (formData.get("pctGroup")     != null) pct.setPctGroup(String.valueOf(formData.get("pctGroup")));
-            if (formData.get("pctRank")      != null) pct.setPctRank(String.valueOf(formData.get("pctRank")));
+            if (formData.get("pctGender") != null) pct.setPctGender(String.valueOf(formData.get("pctGender")));
+            if (formData.get("pctAgeGroup") != null) pct.setPctAgeGroup(String.valueOf(formData.get("pctAgeGroup")));
+            if (formData.get("pctJob") != null) pct.setPctJob(String.valueOf(formData.get("pctJob")));
+            if (formData.get("pctRoot") != null) pct.setPctRoot(String.valueOf(formData.get("pctRoot")));
+            if (formData.get("pctGroup") != null) pct.setPctGroup(String.valueOf(formData.get("pctGroup")));
+            if (formData.get("pctRank") != null) pct.setPctRank(String.valueOf(formData.get("pctRank")));
             if (formData.get("pctIntroduce") != null) pct.setPctIntroduce(String.valueOf(formData.get("pctIntroduce")));
-            if (formData.get("pctDate")      != null) {
+            if (formData.get("pctDate") != null) {
                 try {
                     pct.setPctDate(java.time.LocalDate.parse(
                             String.valueOf(formData.get("pctDate"))).atStartOfDay());
@@ -256,10 +261,6 @@ public class EventParticipationController {
         return ResponseEntity.ok(Map.of("pctId", pctId));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 취소/삭제
-    // ─────────────────────────────────────────────────────────────────────────
-
     @DeleteMapping("/cancelParticipation")
     public ResponseEntity<?> cancelParticipation(@RequestParam("pctId") Long pctId) {
         participationService.cancelParticipation(pctId);
@@ -276,8 +277,11 @@ public class EventParticipationController {
             .setParameter("pctId", pctId)
             .setParameter("userId", userId)
             .executeUpdate();
-        if (updated == 0)
+
+        if (updated == 0) {
             return ResponseEntity.badRequest().body(Map.of("message", "삭제할 수 없는 참여 내역입니다."));
+        }
+
         return ResponseEntity.ok(Map.of("message", "삭제되었습니다."));
     }
 
@@ -287,10 +291,6 @@ public class EventParticipationController {
         return ResponseEntity.ok(Map.of("message", "부스 취소가 완료되었습니다."));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 주최자 부스 관리
-    // ─────────────────────────────────────────────────────────────────────────
-
     @GetMapping("/boothList/{eventId}")
     public ResponseEntity<?> getBoothList(@PathVariable Long eventId) {
         List<ParticipationBoothEntity> list = participationRepository.findBoothsByEventId(eventId);
@@ -298,38 +298,16 @@ public class EventParticipationController {
     }
 
     @PutMapping("/approveBooth")
-    @Transactional
     public ResponseEntity<?> approveBooth(@RequestParam("pctBoothId") Long pctBoothId) {
         participationService.approveBooth(pctBoothId);
-        try {
-            ParticipationBoothEntity booth = participationRepository.findBoothById(pctBoothId).orElse(null);
-            Long eventId = participationRepository.findEventIdByPctBoothId(pctBoothId);
-            if (booth != null && booth.getUserId() != null && eventId != null)
-                notificationService.create(booth.getUserId(), NotiTypeId.BOOTH_ACCEPT, eventId, null);
-        } catch (Exception e) {
-            log.error("[BOOTH_NOTI] failed type=9 pctBoothId={}", pctBoothId, e);
-        }
         return ResponseEntity.ok(Map.of("message", "부스 신청이 승인되었습니다."));
     }
 
     @PutMapping("/rejectBooth")
-    @Transactional
     public ResponseEntity<?> rejectBooth(@RequestParam("pctBoothId") Long pctBoothId) {
         participationService.rejectBooth(pctBoothId);
-        try {
-            ParticipationBoothEntity booth = participationRepository.findBoothById(pctBoothId).orElse(null);
-            Long eventId = participationRepository.findEventIdByPctBoothId(pctBoothId);
-            if (booth != null && booth.getUserId() != null && eventId != null)
-                notificationService.create(booth.getUserId(), NotiTypeId.BOOTH_REJECT, eventId, null);
-        } catch (Exception e) {
-            log.error("[BOOTH_NOTI] failed type=10 pctBoothId={}", pctBoothId, e);
-        }
         return ResponseEntity.ok(Map.of("message", "부스 신청이 반려되었습니다."));
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // 마이페이지
-    // ─────────────────────────────────────────────────────────────────────────
 
     @GetMapping("/myParticipations")
     public ResponseEntity<?> myParticipations() {
@@ -344,10 +322,6 @@ public class EventParticipationController {
         if (userId == null) return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
         return ResponseEntity.ok(participationRepository.findBoothsByUserId(userId));
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // 유틸
-    // ─────────────────────────────────────────────────────────────────────────
 
     private Long getCurrentUserId() {
         try {
