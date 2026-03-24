@@ -50,6 +50,7 @@ public class AuthService {
         
         Long userId = user.getUserId();
         user.setLastLoginAt(LocalDate.now()); 
+        user.setUserStatus(UserStatus.ACTIVE); // 휴면 계정 재로그인 시
     	
         String access = jwtTokenProvider.createAccessToken(userId, role, user.getName());
         String refresh = jwtTokenProvider.createRefreshToken(userId, role);
