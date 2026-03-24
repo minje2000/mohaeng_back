@@ -99,14 +99,16 @@ public class AdminDormantManageServiceImpl implements AdminDormantManageService 
 	//휴면 계정 관리 테이블 업데이트(안내 메일 발송 완료, 탈퇴 처리 완료)
 	@Transactional
 	public int updateDormantUser(DormantStatus changeStatus, DormantUserDto dormantUser) {
+		LocalDateTime now = LocalDateTime.now();
 		if(changeStatus == DormantStatus.NOTIFIED) {		//안내 메일 발송 완료 처리일 경우
 			dormantUser.setNotifiedAt(LocalDateTime.now());
-		} else {		//안내 메일 발송 완료 처리일 경우
-			dormantUser.setWithdrawnAt(LocalDateTime.now());
+			dormantUser.setWithdrawnAt(now.plusDays(7));
+		} else {		//탈퇴 처리
+			dormantUser.setWithdrawnAt(now);
 		}
 		
 		dormantUser.setDormantStatus(changeStatus);
-		dormantUser.setUpdatedAt(LocalDateTime.now());
+		dormantUser.setUpdatedAt(now);
 		
 		UserEntity user = userRepository.findById(dormantUser.getUserId())
 	            .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
@@ -129,6 +131,7 @@ public class AdminDormantManageServiceImpl implements AdminDormantManageService 
 	            .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
 		
 		updateUser.setUserStatus(UserStatus.WITHDRAWAL);
+		updateUser.setEmail(updateUser.getEmail() + "#withdrawal" + userId);
 	}
 
 }
