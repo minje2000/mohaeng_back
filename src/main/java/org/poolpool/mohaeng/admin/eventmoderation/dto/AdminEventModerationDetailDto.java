@@ -82,7 +82,7 @@ public class AdminEventModerationDetailDto {
                 .zipCode(event.getZipCode())
                 .topicIds(event.getTopicIds())
                 .hashtagIds(event.getHashtagIds())
-                .eventStatus(event.getEventStatus())
+                .eventStatus(toDisplayEventStatus(event.getEventStatus()))
                 .moderationStatus(event.getModerationStatus())
                 .aiRiskScore(event.getAiRiskScore())
                 .aiCheckedAt(event.getAiCheckedAt())
@@ -93,5 +93,11 @@ public class AdminEventModerationDetailDto {
                 .categoryId(event.getCategory() != null ? event.getCategory().getCategoryId() : null)
                 .regionId(event.getRegion() != null ? event.getRegion().getRegionId() : null)
                 .build();
+    }
+
+    private static String toDisplayEventStatus(String status) {
+        if (status == null || status.isBlank()) return "-";
+        if ("DELETED".equalsIgnoreCase(status)) return "삭제";
+        return status;
     }
 }
