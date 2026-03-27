@@ -29,11 +29,17 @@ public class AdminEventModerationListItemDto {
                 .title(event.getTitle())
                 .startDate(event.getStartDate())
                 .endDate(event.getEndDate())
-                .eventStatus(event.getEventStatus())
+                .eventStatus(toDisplayEventStatus(event.getEventStatus()))
                 .moderationStatus(event.getModerationStatus())
                 .aiRiskScore(event.getAiRiskScore())
                 .aiCheckedAt(event.getAiCheckedAt())
                 .createdAt(event.getCreatedAt())
                 .build();
+    }
+
+    private static String toDisplayEventStatus(String status) {
+        if (status == null || status.isBlank()) return "-";
+        if ("DELETED".equalsIgnoreCase(status)) return "삭제";
+        return status;
     }
 }
